@@ -2,6 +2,7 @@
 package com.badlogicgames.gwen
 
 import ai.kitt.snowboy.SnowboyDetect
+import java.io.File
 
 fun main(args: Array<String>) {
     val osName = System.getProperty("os.name").toLowerCase();
@@ -11,8 +12,8 @@ fun main(args: Array<String>) {
     println("OS arch: ${osArch}");
 
     when {
-        osName.contains("mac") -> System.load("jni/libsnowboy-detect-java.dylib");
-        else -> System.load("jni/libsnowboy-detect-java.so");
+        osName.contains("mac") -> System.load(File("jni/libsnowboy-detect-java.dylib").absolutePath);
+        else -> System.load(File("jni/libsnowboy-detect-java.so").absolutePath);
     }
 
     val detector = SnowboyDetect("models/snowboy/common.res", "models/snowboy/OK Google.pmdl");
