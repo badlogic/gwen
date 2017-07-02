@@ -10,6 +10,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.POST
 import java.awt.Desktop
+import java.awt.GraphicsEnvironment
 import java.io.*
 import java.net.URI
 
@@ -84,7 +85,7 @@ class OAuth {
 
     fun commandLineRequestFlow() {
         val url = getAuthorizationURL();
-        Desktop.getDesktop().browse(URI(url));
+        if (!GraphicsEnvironment.isHeadless()) Desktop.getDesktop().browse(URI(url));
         val reader = BufferedReader(InputStreamReader(System.`in`))
         println("Open ${url}");
         println("Paste code here: ");
