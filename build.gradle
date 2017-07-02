@@ -10,6 +10,7 @@ plugins {
 
 repositories {
 	mavenCentral()
+	mavenLocal()
 }
 
 version = "1.0"
@@ -38,5 +39,7 @@ dependencies {
     compile "com.google.auth:google-auth-library-credentials:0.6.0"
     compile "com.squareup.retrofit2:retrofit:2.0.2"
     compile "com.squareup.retrofit2:converter-gson:2.0.2"
-    compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
+//    compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
+//    compile "io.netty:netty-tcnative-openssl-static:2.0.5.Final"
+    compile fileTree(dir: 'libs', include: ['*.jar*'])
 }
