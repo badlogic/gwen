@@ -36,5 +36,6 @@ dependencies {
     compile "io.grpc:grpc-auth:1.3.0"
     compile "com.google.auth:google-auth-library-oauth2-http:0.6.0"
     compile "com.google.auth:google-auth-library-credentials:0.6.0"
-    // compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
+    compile "com.squareup.retrofit2:retrofit:2.0.2"
+    compile "com.squareup.retrofit2:converter-gson:2.0.2"
 }
