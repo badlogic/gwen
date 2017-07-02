@@ -10,31 +10,7 @@ import java.io.FileReader
 
 data class GwenConfig (val clientId: String, val clientSecret: String)
 
-fun snowball() {
-    val osName = System.getProperty("os.name").toLowerCase();
-    val osArch = System.getProperty("os.arch").toLowerCase();
-
-    println("OS name: ${osName}");
-    println("OS arch: ${osArch}");
-
-    when {
-        osName.contains("mac") -> System.load(File("jni/libsnowboy-detect-java.dylib").absolutePath);
-        else -> System.load(File("jni/libsnowboy-detect-java.so").absolutePath);
-    }
-
-    val detector = SnowboyDetect("models/snowboy/common.res", "models/snowboy/OK Google.pmdl");
-    val recorder = AudioRecorder(16000f);
-
-    while (true) {
-        val data = recorder.read();
-        val result = detector.RunDetection(data, data.size);
-        if (result > 0) {
-            println("Hotword ${result} detected!");
-        }
-    }
-}
-
-fun oauth() {
+fun oauth(): OAuth {
     val gwenConfig: GwenConfig = Gson().fromJson(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
     val config = OAuthConfig("https://www.googleapis.com/oauth2/v4/",
             gwenConfig.clientId,
@@ -43,15 +19,34 @@ fun oauth() {
             "https://www.googleapis.com/auth/assistant-sdk-prototype",
             "urn:ietf:wg:oauth:2.0:oob",
             "https://accounts.google.com/o/oauth2/v2/auth");
-    val oAuth = OAuth(config);
-    if (!oAuth.isAuthorized()) {
-        oAuth.commandLineRequestFlow();
+    val oauth = OAuth(config);
+    if (!oauth.isAuthorized()) {
+        oauth.commandLineRequestFlow();
     } else {
-        oAuth.getCredentials();
+        oauth.getCredentials();
+    }
+    return oauth;
+}
+
+fun assistant() {
+    val audioRecorder = LocalAudioRecorder(16000, 1600);
+    val audioPlayer = LocalAudioPlayer(16000);
+    val oauth = oauth();
+    val hotwordDetector = SnowboyHotwordDetector(audioRecorder, "models/snowboy/alexa.umdl");
+    val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
+
+    println("Say 'Alexa' to start a query");
+    while (true) {
+        if (hotwordDetector.detect()) {
+            println("What's up?");
+            assistant.converse();
+            println("Say 'Alexa' to start a query");
+        }
     }
 }
 
 fun main(args: Array<String>) {
     // snowball();
-    oauth();
+    // oauth();
+    assistant();
 }
