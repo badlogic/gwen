@@ -47,7 +47,7 @@ fun oauth() {
     if (!oAuth.isAuthorized()) {
         oAuth.commandLineRequestFlow();
     } else {
-        println("Already authorized");
+        oAuth.getCredentials();
     }
 }
 

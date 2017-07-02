@@ -51,6 +51,7 @@ class OAuth {
     private val client: OAuthClient;
     private val gson: Gson;
     private var credentials: OAuthCredentials? = null;
+    private val REFRESH_TIME = 300000;
 
     constructor(config: OAuthConfig) {
         this.config = config;
@@ -70,6 +71,11 @@ class OAuth {
     fun getCredentials(): OAuthCredentials {
         val creds = credentials;
         if (creds == null) throw Error("Not authorized");
+
+        if (creds.expirationTime - System.currentTimeMillis() < REFRESH_TIME) {
+            refreshAccessToken()
+        }
+
         return creds;
     }
 
@@ -100,7 +106,7 @@ class OAuth {
         return credentials;
     }
 
-    fun refreshAccessToken() {
+    private fun refreshAccessToken() {
         val creds = credentials;
         if (creds == null) throw Error("Not authorized");
         val response = client.refreshAccessToken(creds.refreshToken, config.clientId, config.clientSecret, "refresh_token").execute();
