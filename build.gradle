@@ -1,5 +1,11 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+}
+
 plugins {
-    id "org.jetbrains.kotlin.jvm" version "1.1.3"
+    id "org.jetbrains.kotlin.jvm" version "1.1.3"    
 }
 
 repositories {
@@ -23,4 +29,12 @@ task dist(dependsOn: classes, type: Jar) {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib"
+    compile "com.google.protobuf:protobuf-java:3.2.0"
+    compile "io.grpc:grpc-netty:1.3.0"
+    compile "io.grpc:grpc-protobuf:1.3.0"
+    compile "io.grpc:grpc-stub:1.3.0"
+    compile "io.grpc:grpc-auth:1.3.0"
+    compile "com.google.auth:google-auth-library-oauth2-http:0.6.0"
+    compile "com.google.auth:google-auth-library-credentials:0.6.0"
+    // compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
 }

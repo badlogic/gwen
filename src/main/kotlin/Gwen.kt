@@ -1,10 +1,16 @@
 @file:JvmName("Gwen")
+
 package com.badlogicgames.gwen
 
 import ai.kitt.snowboy.SnowboyDetect
+import com.google.gson.Gson
+import com.google.gson.stream.JsonReader
 import java.io.File
+import java.io.FileReader
 
-fun main(args: Array<String>) {
+data class GwenConfig (val clientId: String, val clientSecret: String)
+
+fun snowball() {
     val osName = System.getProperty("os.name").toLowerCase();
     val osArch = System.getProperty("os.arch").toLowerCase();
 
@@ -26,4 +32,26 @@ fun main(args: Array<String>) {
             println("Hotword ${result} detected!");
         }
     }
+}
+
+fun oauth() {
+    val gwenConfig: GwenConfig = Gson().fromJson(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
+    val config = OAuthConfig("https://www.googleapis.com/oauth2/v4/",
+            gwenConfig.clientId,
+            gwenConfig.clientSecret,
+            "credentials.json",
+            "https://www.googleapis.com/auth/assistant-sdk-prototype",
+            "urn:ietf:wg:oauth:2.0:oob",
+            "https://accounts.google.com/o/oauth2/v2/auth");
+    val oAuth = OAuth(config);
+    if (!oAuth.isAuthorized()) {
+        oAuth.commandLineRequestFlow();
+    } else {
+        println("Already authorized");
+    }
+}
+
+fun main(args: Array<String>) {
+    // snowball();
+    oauth();
 }
