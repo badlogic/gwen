@@ -112,11 +112,17 @@ class OAuth {
         val response = client.refreshAccessToken(creds.refreshToken, config.clientId, config.clientSecret, "refresh_token").execute();
         if (response.isSuccessful) {
             val credentials = response.body()
-            saveCredentials(credentials);
-            this.credentials = credentials;
+            val originalCredentials = this.credentials;
+            if (originalCredentials != null) {
+                originalCredentials.accessToken = credentials.accessToken;
+                originalCredentials.expiresIn = credentials.expiresIn;
+                originalCredentials.tokenType = credentials.tokenType;
+                saveCredentials(originalCredentials);
+            }
+            this.credentials = originalCredentials;
         } else {
             credentials = null;
-            throw Error("Couldn't refresh token")
+            throw Error("Couldn't refresh token ${response.errorBody().string()}")
         }
     }
 
