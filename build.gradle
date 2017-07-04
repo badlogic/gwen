@@ -28,6 +28,14 @@ task dist(dependsOn: classes, type: Jar) {
     }
 }
 
+def tcNative() {
+    if (System.getProperty("os.arch").toLowerCase().contains("arm")) {
+        return fileTree(dir: 'libs', include: ['*.jar*'])
+    } else {
+        return "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
+    }
+}
+
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib"
     compile "com.google.protobuf:protobuf-java:3.2.0"
@@ -39,7 +47,8 @@ dependencies {
     compile "com.google.auth:google-auth-library-credentials:0.6.0"
     compile "com.squareup.retrofit2:retrofit:2.0.2"
     compile "com.squareup.retrofit2:converter-gson:2.0.2"
-//    compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
-//    compile "io.netty:netty-tcnative-openssl-static:2.0.5.Final"
-    compile fileTree(dir: 'libs', include: ['*.jar*'])
+    compile tcNative()
+//  compile "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
+//  compile "io.netty:netty-tcnative-openssl-static:2.0.5.Final"
+//  compile fileTree(dir: 'libs', include: ['*.jar*'])
 }

@@ -32,12 +32,13 @@ fun assistant() {
     val audioRecorder = LocalAudioRecorder(16000, 1600);
     val audioPlayer = LocalAudioPlayer(16000);
     val oauth = oauth();
-    val hotwordDetector = SnowboyHotwordDetector(audioRecorder, "models/snowboy/alexa.umdl");
+    val hotwordDetector = SnowboyHotwordDetector("models/snowboy/alexa.umdl");
     val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
 
     println("Say 'Alexa' to start a query");
     while (true) {
-        if (hotwordDetector.detect()) {
+        audioRecorder.read();
+        if (hotwordDetector.detect(audioRecorder.getShortData())) {
             println("What's up?");
             assistant.converse();
             println("Say 'Alexa' to start a query");

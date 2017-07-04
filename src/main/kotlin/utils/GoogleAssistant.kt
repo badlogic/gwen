@@ -10,10 +10,6 @@ import io.grpc.stub.StreamObserver
 import java.util.*
 import java.util.concurrent.CountDownLatch
 
-enum class AssistantState {
-    ConversationEnd
-}
-
 class GoogleAssistant: StreamObserver<ConverseResponse> {
     private val oauth: OAuth;
     private val audioRecorder: AudioRecorder;
