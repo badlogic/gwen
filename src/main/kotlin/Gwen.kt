@@ -8,10 +8,13 @@ import com.google.gson.stream.JsonReader
 import java.io.File
 import java.io.FileReader
 
-data class GwenConfig (val clientId: String, val clientSecret: String)
+data class GwenConfig (var clientId: String, var clientSecret: String, var oauthConfig: OAuthConfig)
+
+val gwenConfig: GwenConfig by lazy {
+    Gson().fromJson<GwenConfig>(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
+}
 
 fun oauth(): OAuth {
-    val gwenConfig: GwenConfig = Gson().fromJson(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
     val config = OAuthConfig("https://www.googleapis.com/oauth2/v4/",
             gwenConfig.clientId,
             gwenConfig.clientSecret,
@@ -32,21 +35,32 @@ fun assistant() {
     val audioRecorder = LocalAudioRecorder(16000, 1600);
     val audioPlayer = LocalAudioPlayer(16000);
     val oauth = oauth();
-    val hotwordDetector = SnowboyHotwordDetector("models/snowboy/alexa.umdl");
+    val commandHotword = SnowboyHotwordDetector("models/snowboy/alexa.umdl");
+    val qaHotword = SnowboyHotwordDetector("models/snowboy/OK Google.pmdl");
     val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
 
-    println("Say 'Alexa' to start a query");
+    val prompt = "Say 'OK Google' to start a query, 'Alexa' to ask a question"
+    println(prompt);
     while (true) {
         audioRecorder.read();
-        if (hotwordDetector.detect(audioRecorder.getShortData())) {
+        if (qaHotword.detect(audioRecorder.getShortData())) {
             println("What's up?");
-            assistant.converse();
-            println("Say 'Alexa' to start a query");
+            while (assistant.converse()) {
+                println("Continuing conversation");
+            }
+            println(prompt);
+        }
+        if (commandHotword.detect(audioRecorder.getShortData())) {
+            println("At your command");
+            val command = assistant.speechToText();
+            println("Command: ${command}")
+            println(prompt)
         }
     }
 }
 
 fun main(args: Array<String>) {
+    val config = gwenConfig;
     // snowball();
     // oauth();
     assistant();

@@ -17,8 +17,11 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
     private var client: EmbeddedAssistantGrpc.EmbeddedAssistantStub;
     private var currentState: ByteString? = null;
     private var finished = CountDownLatch(1);
+    @Volatile private var speechToTextResult: String = "";
     @Volatile private var stopRecording: Boolean = false;
     @Volatile private var continueConversation: Boolean = false;
+    @Volatile private var isCompleted: Boolean = false;
+    @Volatile private var stopOnRequestText = false;
     private val TIME_OUT = 60 * 1000;
 
     constructor(oauth: OAuth, audioRecorder: AudioRecorder, audioPlayer: AudioPlayer) {
@@ -36,34 +39,64 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         client = client.withCallCredentials(callCredentials);
     }
 
-    fun converse() {
+    fun speechToText(): String {
         setCredentials(oauth.getCredentials());
+
+        println("Starting text to speech");
+        val requester = client.converse(this);
         finished = CountDownLatch(1);
         stopRecording = false;
         continueConversation = false;
+        isCompleted = false;
+        speechToTextResult = "";
+        stopOnRequestText = true;
+        var sentCompleted = false;
 
-        val requester = client.converse(this);
-
-        do {
-            requester.onNext(createConfigRequest());
-            val timeOutTime = System.currentTimeMillis() + TIME_OUT;
-            var isCompleted = false;
-            while (finished.count != 0.toLong() && System.currentTimeMillis() < timeOutTime) {
-                if (!stopRecording) {
-                    audioRecorder.read();
-                    val audioIn = ByteString.copyFrom(audioRecorder.getByteData())
-                    val request = ConverseRequest.newBuilder().setAudioIn(audioIn).build();
-                    requester.onNext(request);
-                } else {
-                    if (!isCompleted) {
-                        requester.onCompleted()
-                        isCompleted = true;
-                    };
-                    Thread.sleep(20);
-                }
+        requester.onNext(createConfigRequest());
+        val timeOutTime = System.currentTimeMillis() + TIME_OUT;
+        while (finished.count != 0.toLong() && System.currentTimeMillis() < timeOutTime) {
+            audioRecorder.read();
+            if (!stopRecording) {
+                val audioIn = ByteString.copyFrom(audioRecorder.getByteData())
+                val request = ConverseRequest.newBuilder().setAudioIn(audioIn).build();
+                requester.onNext(request);
+            } else {
+                Thread.sleep(20);
             }
-            if (System.currentTimeMillis() < timeOutTime) currentState = null;
-        } while (continueConversation);
+        }
+        return speechToTextResult;
+    }
+
+    fun converse(): Boolean {
+        setCredentials(oauth.getCredentials());
+
+        println("Starting convo");
+        val requester = client.converse(this);
+        finished = CountDownLatch(1);
+        stopRecording = false;
+        continueConversation = false;
+        isCompleted = false;
+        stopOnRequestText = false;
+        var sentCompleted = false;
+
+        requester.onNext(createConfigRequest());
+        val timeOutTime = System.currentTimeMillis() + TIME_OUT;
+        while (finished.count != 0.toLong() && System.currentTimeMillis() < timeOutTime) {
+            audioRecorder.read();
+            if (!stopRecording) {
+                val audioIn = ByteString.copyFrom(audioRecorder.getByteData())
+                val request = ConverseRequest.newBuilder().setAudioIn(audioIn).build();
+                requester.onNext(request);
+            } else {
+                if (isCompleted && !sentCompleted) {
+                    requester.onCompleted();
+                    sentCompleted = true;
+                }
+                Thread.sleep(20);
+            }
+        }
+        if (System.currentTimeMillis() < timeOutTime) currentState = null;
+        return continueConversation;
     }
 
     private fun createConfigRequest(): ConverseRequest {
@@ -98,8 +131,10 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         }
 
         if (value.audioOut != null) {
-            val audioData = value.audioOut.audioData.toByteArray();
-            audioPlayer.play(audioData, 0, audioData.size);
+            if (!stopOnRequestText) {
+                val audioData = value.audioOut.audioData.toByteArray();
+                audioPlayer.play(audioData, 0, audioData.size);
+            }
         }
 
         if (value.result != null) {
@@ -107,25 +142,25 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
 
             if (value.result.spokenRequestText != null && !value.result.spokenRequestText.isEmpty()) {
                 println("Request Text : ${value.result.spokenRequestText}");
+                speechToTextResult = value.result.spokenRequestText
+                if (stopOnRequestText) finished.countDown();
             }
 
             if (value.result.spokenResponseText != null && !value.result.spokenResponseText.isEmpty()) {
                 println("Response Text : ${value.result.spokenResponseText}");
             }
-        }
 
-        if (value.eventType == ConverseResponse.EventType.EVENT_TYPE_UNSPECIFIED) {
-            // println("response: unspecified type");
-            return;
-        }
-
-        if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {
-            println("response: dialog follow on");
-            continueConversation = true;
-        }
-        if (value.result.microphoneMode == ConverseResult.MicrophoneMode.CLOSE_MICROPHONE) {
-            println("response: close microphone");
-            continueConversation = false;
+            if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {
+                println("response: dialog follow on");
+                continueConversation = true;
+                isCompleted = true;
+            }
+            if (value.result.microphoneMode == ConverseResult.MicrophoneMode.CLOSE_MICROPHONE) {
+                println("response: close microphone");
+                continueConversation = false;
+                isCompleted = true;
+                if (stopOnRequestText) finished.countDown();
+            }
         }
     }
 
