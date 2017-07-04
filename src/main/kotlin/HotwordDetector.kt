@@ -18,7 +18,7 @@ class SnowboyHotwordDetector : HotwordDetector {
             osName.contains("mac") -> System.load(File("jni/libsnowboy-detect-java.dylib").absolutePath);
             else -> System.load(File("jni/libsnowboy-detect-java.so").absolutePath);
         }
-        this.detector = SnowboyDetect("models/snowboy/common.res", modelFile);
+        this.detector = SnowboyDetect("assets/snowboy/common.res", modelFile);
     }
 
     override fun detect(audioData: ShortArray): Boolean {

@@ -8,10 +8,14 @@ import com.google.gson.stream.JsonReader
 import java.io.File
 import java.io.FileReader
 
-data class GwenConfig (var clientId: String, var clientSecret: String, var oauthConfig: OAuthConfig)
+data class GwenConfig (var clientId: String, var clientSecret: String, var oauthCredentials: OAuthCredentials?)
 
 val gwenConfig: GwenConfig by lazy {
-    Gson().fromJson<GwenConfig>(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
+    try {
+        Gson().fromJson<GwenConfig>(JsonReader(FileReader("${System.getProperty("user.home")}/gwen.json")), GwenConfig::class.java);
+    } catch (e: Throwable) {
+        GwenConfig("", "", OAuthCredentials("", 0, "", "", "", 0L));
+    }
 }
 
 fun oauth(): OAuth {
@@ -35,8 +39,8 @@ fun assistant() {
     val audioRecorder = LocalAudioRecorder(16000, 1600);
     val audioPlayer = LocalAudioPlayer(16000);
     val oauth = oauth();
-    val commandHotword = SnowboyHotwordDetector("models/snowboy/alexa.umdl");
-    val qaHotword = SnowboyHotwordDetector("models/snowboy/OK Google.pmdl");
+    val commandHotword = SnowboyHotwordDetector("assets/snowboy/alexa.umdl");
+    val qaHotword = SnowboyHotwordDetector("assets/snowboy/snowboy.umdl");
     val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
 
     val prompt = "Say 'OK Google' to start a query, 'Alexa' to ask a question"
@@ -60,6 +64,7 @@ fun assistant() {
 }
 
 fun main(args: Array<String>) {
+    startWebInterface();
     val config = gwenConfig;
     // snowball();
     // oauth();
