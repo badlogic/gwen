@@ -8,3 +8,5 @@ bin/
 .gradle/
 .DS_Store
 credentials.json
+gwen.json
+log.txt

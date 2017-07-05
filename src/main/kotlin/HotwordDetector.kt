@@ -1,6 +1,7 @@
 package com.badlogicgames.gwen;
 
 import ai.kitt.snowboy.SnowboyDetect
+import com.esotericsoftware.minlog.Log
 import java.io.Closeable
 import java.io.File
 
@@ -11,14 +12,15 @@ interface HotwordDetector : Closeable {
 class SnowboyHotwordDetector : HotwordDetector {
     val detector: SnowboyDetect;
 
-    constructor(modelFile: String) {
+    constructor(model: File) {
         val osName = System.getProperty("os.name").toLowerCase();
 
         when {
-            osName.contains("mac") -> System.load(File("jni/libsnowboy-detect-java.dylib").absolutePath);
-            else -> System.load(File("jni/libsnowboy-detect-java.so").absolutePath);
+            osName.contains("mac") -> System.load(File(appPath.absolutePath + "/jni/libsnowboy-detect-java.dylib").absolutePath);
+            else -> System.load(File(appPath.absolutePath + "/jni/libsnowboy-detect-java.so").absolutePath);
         }
-        this.detector = SnowboyDetect("assets/snowboy/common.res", modelFile);
+        Log.debug("Loading Snowboy model ${model.absolutePath}");
+        this.detector = SnowboyDetect(appPath.absolutePath + "/assets/snowboy/common.res", model.absolutePath);
     }
 
     override fun detect(audioData: ShortArray): Boolean {

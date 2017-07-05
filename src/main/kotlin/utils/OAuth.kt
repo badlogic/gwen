@@ -1,5 +1,6 @@
 package com.badlogicgames.gwen
 
+import com.esotericsoftware.minlog.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
@@ -17,7 +18,7 @@ import java.net.URI
 data class OAuthConfig(val endPoint: String,
                        val clientId: String,
                        val clientSecret: String,
-                       val credentialsFile: String,
+                       val credentialsFile: File,
                        val scope: String,
                        val codeRedirectUri: String,
                        val userRedirectUri: String);
@@ -57,12 +58,13 @@ class OAuth {
         this.config = config;
         val oAuthClient = Retrofit.Builder().baseUrl(config.endPoint)?.addConverterFactory(GsonConverterFactory.create())?.build()?.create(OAuthClient::class.java);
         if (oAuthClient == null) {
+            Log.error("Couldn't create OAuth client");
             throw Exception("Couldn't create OAuth client");
         }
         this.client = oAuthClient;
         this.gson = Gson();
 
-        val credsFile = File(config.credentialsFile);
+        val credsFile = config.credentialsFile;
         if (credsFile.exists()) {
             credentials = gson.fromJson(JsonReader(FileReader(credsFile)), OAuthCredentials::class.java);
         }
@@ -79,7 +81,7 @@ class OAuth {
         return creds;
     }
 
-    fun isAuthorized(): Boolean = credentials != null;
+    fun    isAuthorized(): Boolean = credentials != null;
 
     fun getAuthorizationURL(): String = "${config.userRedirectUri}?scope=${config.scope}&response_type=code&redirect_uri=${config.codeRedirectUri}&client_id=${config.clientId}";
 
@@ -93,6 +95,7 @@ class OAuth {
     }
 
     fun requestAccessToken(code: String): OAuthCredentials? {
+        Log.info("Requesting access token");
         credentials == null;
         val response = client.getAccessToken(code, config.clientId, config.clientSecret, config.codeRedirectUri, "authorization_code").execute();
 
@@ -100,13 +103,16 @@ class OAuth {
             val credentials = response.body();
             saveCredentials(credentials);
             this.credentials = credentials;
+            Log.info("Got access token");
         } else {
+            Log.error("Couldn't get access token, ${response.errorBody().string()}");
             throw Error("Couldn't request token");
         }
         return credentials;
     }
 
     private fun refreshAccessToken() {
+        Log.info("Refreshing OAuth access token");
         val creds = credentials;
         if (creds == null) throw Error("Not authorized");
         val response = client.refreshAccessToken(creds.refreshToken, config.clientId, config.clientSecret, "refresh_token").execute();
@@ -120,8 +126,10 @@ class OAuth {
                 saveCredentials(originalCredentials);
             }
             this.credentials = originalCredentials;
+            Log.info("Refreshed token");
         } else {
             credentials = null;
+            Log.error("Couldn't refresh token, ${response.errorBody().string()}");
             throw Error("Couldn't refresh token ${response.errorBody().string()}")
         }
     }
@@ -131,5 +139,9 @@ class OAuth {
             credentials.expirationTime = System.currentTimeMillis() + credentials.expiresIn * 1000;
             gson.toJson(credentials, it);
         }
+    }
+
+    fun deleteCredentials() {
+        config.credentialsFile.delete();
     }
 }
