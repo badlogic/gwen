@@ -14,6 +14,8 @@ val appPath: File by lazy {
     val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
     when {
         path.absolutePath.endsWith("build/classes/main") -> path.parentFile.parentFile.parentFile
+        path.absolutePath.endsWith("build/libs") -> path.parentFile.parentFile
+        path.absolutePath.endsWith("bin") -> path.parentFile
         else -> path
     }
 }
