@@ -1,8 +1,4 @@
 form {
-  /* Just to center the form on the page */
-  margin: 0 auto;
-  width: 400px;
-  /* To see the outline of the form */
   padding: 1em;
 }
 
@@ -52,4 +48,15 @@ button {
   /* This extra margin represent roughly the same space as the space
      between the labels and their text fields */
   margin-left: .5em;
+}
+
+table {
+    width: 50%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 5px;
+    text-align: left;
+    border: 1px solid black;
 }

@@ -9,7 +9,7 @@ import java.io.File
 import java.io.FileWriter
 import java.net.InetSocketAddress
 
-fun startWebInterface (port: Int = 8777) {
+fun startWebInterface(port: Int = 8777) {
     val server = HttpServer.create(InetSocketAddress(port), 0);
     server.createContext("/", WebInterface());
     server.start();
@@ -31,12 +31,15 @@ class WebInterface : HttpHandler {
             "/" -> respond(request, File(appPath, "assets/web/index.html").readText().toByteArray(), MIMETYPE_HTML)
             "/projectSave" -> handleProjectSave(request);
             "/accountSave" -> handleAccountSave(request);
+            "/modelSave" -> handleModelSave(request);
+            "/modelDelete" -> handleModelDelete(request);
             "/status" -> handleStatus(request);
+            "/models" -> handleModels(request);
             else -> handleFile(request);
         }
     }
 
-    private fun respond(request: HttpExchange, content: ByteArray, type: String,  status: Int = 200) {
+    private fun respond(request: HttpExchange, content: ByteArray, type: String, status: Int = 200) {
         request.responseHeaders.add("Content-Type", type);
         request.sendResponseHeaders(status, content.size.toLong());
         request.responseBody.use {
@@ -49,8 +52,8 @@ class WebInterface : HttpHandler {
     }
 
     private fun handleFile(request: HttpExchange) {
-        var root = File(appPath, "assets/web/").absolutePath;
-        var file = File(root + request.requestURI.path).canonicalFile;
+        val root = File(appPath, "assets/web/").absolutePath;
+        val file = File(root + request.requestURI.path).canonicalFile;
         when {
             !file.path.startsWith(root) -> error(request, "(403) Forbidden", 403)
             !file.exists() || file.isDirectory -> error(request, "(404) Not found", 404);
@@ -85,8 +88,8 @@ class WebInterface : HttpHandler {
 
     private fun handleProjectSave(request: HttpExchange) {
         val params = parseParams(request);
-        val id = params.get("clientId");
-        val secret = params.get("clientSecret");
+        val id = params["clientId"];
+        val secret = params["clientSecret"];
 
         Log.info("Saving project config");
         if (id != null && !id.isEmpty() && secret != null && !secret.isEmpty()) {
@@ -99,10 +102,10 @@ class WebInterface : HttpHandler {
                 Log.error("Couldn't save config", t);
                 error(request, "Couldn't save config", 400);
                 File(appPath, "gwen.json").delete();
-                oauth?.let{ it.deleteCredentials(); }
+                oauth?.deleteCredentials()
             }
             gwen.stop();
-            oauth?.let{ it.deleteCredentials(); }
+            oauth?.deleteCredentials()
             oauth = loadOAuth(config!!);
             handleStatus(request);
         } else {
@@ -111,8 +114,8 @@ class WebInterface : HttpHandler {
     }
 
     private fun handleAccountSave(request: HttpExchange) {
-        var params = parseParams(request);
-        val code = params.get("code");
+        val params = parseParams(request);
+        val code = params["code"];
 
         Log.info("Got OAuth code, saving account");
         if (code != null && !code.isEmpty()) {
@@ -134,6 +137,58 @@ class WebInterface : HttpHandler {
             }
         } else {
             error(request, "Invalid code, authorization failed", 400);
+        }
+    }
+
+    private fun handleModels(request: HttpExchange) {
+        respond(request, Gson().toJson(gwen.models).toByteArray(), MIMETYPE_JSON);
+    }
+
+    class FileHandler : FormDataHandler() {
+        var parts = emptyMap<String, MultiPart>()
+        override fun handle(httpExchange: HttpExchange, parts: MutableList<MultiPart>) {
+            val result = mutableMapOf<String, MultiPart>()
+            for (part in parts) {
+                result[part.name] = part;
+            }
+            this.parts = result;
+        }
+
+    }
+
+    private fun handleModelSave(request: HttpExchange) {
+        val fileHandler = FileHandler()
+        fileHandler.handle(request)
+        val parts = fileHandler.parts;
+
+        if (parts["modelName"] == null || parts["modelType"] == null || parts["file"] == null) {
+            Log.error("Couldn't save model, request incomplete");
+            error(request, "Couldn't save model, request incomplete", 400);
+        } else {
+            try {
+                gwen.addModel(parts["modelName"]!!.value, parts["file"]!!.filename, GwenModelType.valueOf(parts["modelType"]!!.value), parts["file"]!!.bytes);
+                handleModels(request);
+            } catch(t: Throwable) {
+                Log.error("Couldn't save model", t);
+                error(request, "Couldn't save model", 400);
+            }
+        }
+    }
+
+    private fun handleModelDelete(request: HttpExchange) {
+        val params = parseParams(request);
+        val modelName = params["name"];
+
+        if (modelName != null) {
+            try {
+                gwen.deleteModel(modelName);
+                handleModels(request);
+            } catch(t: Throwable) {
+                Log.error("Couldn't delete model $modelName", t);
+                error(request, "Couldn't delete model", 400);
+            }
+        } else {
+            error(request, "Couldn't delete model", 400);
         }
     }
 

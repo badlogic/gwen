@@ -9,4 +9,6 @@ bin/
 .DS_Store
 credentials.json
 gwen.json
+models.json
 log.txt
+usermodels/
