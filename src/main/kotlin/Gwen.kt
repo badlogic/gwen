@@ -16,6 +16,7 @@ val appPath: File by lazy {
         path.absolutePath.endsWith("build/classes/main") -> path.parentFile.parentFile.parentFile
         path.absolutePath.endsWith("build/libs") -> path.parentFile.parentFile
         path.absolutePath.endsWith("bin") -> path.parentFile
+        !path.isDirectory() -> path.parentFile
         else -> path
     }
 }
