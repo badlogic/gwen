@@ -27,14 +27,28 @@ val MIMETYPE_JS = "text/javascript"
 
 class WebInterface : HttpHandler {
     override fun handle(request: HttpExchange) {
+        // redirect to setup pages
+        if (request.requestURI.path.endsWith(".html") || request.requestURI.path.equals("/")) {
+            if (config == null && !request.requestURI.path.equals("/setup-project.html")) {
+                redirect(request, "/setup-project.html")
+                return;
+            } else {
+                val oa = oauth;
+                if (config != null && (oa == null || !oa.isAuthorized()) && !request.requestURI.path.equals("/setup-oauth.html")) {
+                    redirect(request, "/setup-oauth.html")
+                    return;
+                };
+            }
+        }
+
         when (request.requestURI.path) {
             "/" -> respond(request, File(appPath, "assets/web/index.html").readText().toByteArray(), MIMETYPE_HTML)
             "/projectSave" -> handleProjectSave(request);
+            "/authorizationUrl" -> handleAuthorizationUrl(request);
             "/accountSave" -> handleAccountSave(request);
+            "/models" -> handleModels(request);
             "/modelSave" -> handleModelSave(request);
             "/modelDelete" -> handleModelDelete(request);
-            "/status" -> handleStatus(request);
-            "/models" -> handleModels(request);
             else -> handleFile(request);
         }
     }
@@ -49,6 +63,12 @@ class WebInterface : HttpHandler {
 
     private fun error(request: HttpExchange, message: String, status: Int) {
         respond(request, message.toByteArray(), MIMETYPE_PLAINTEXT, status);
+    }
+
+    private fun redirect(request: HttpExchange, url: String) {
+        request.responseHeaders.add("Location", url);
+        request.sendResponseHeaders(302, 0);
+        request.responseBody.close();
     }
 
     private fun handleFile(request: HttpExchange) {
@@ -107,7 +127,7 @@ class WebInterface : HttpHandler {
             gwen.stop();
             oauth?.deleteCredentials()
             oauth = loadOAuth(config!!);
-            handleStatus(request);
+            redirect(request, "/");
         } else {
             error(request, "Invalid client id & secret", 400);
         }
@@ -131,7 +151,7 @@ class WebInterface : HttpHandler {
                 oauth = oa;
                 gwen.stop();
                 gwen.start(oa);
-                handleStatus(request);
+                redirect(request, "/");
             } else {
                 error(request, "Invalid code, authorization failed", 400);
             }
@@ -192,10 +212,7 @@ class WebInterface : HttpHandler {
         }
     }
 
-    private fun handleStatus(request: HttpExchange) {
-        val status: GwenStatus;
-        val oauth = oauth;
-        status = GwenStatus(config == null, oauth == null || !oauth.isAuthorized(), oauth?.getAuthorizationURL(), gwen.running);
-        respond(request, Gson().toJson(status).toByteArray(), MIMETYPE_JSON);
+    private fun handleAuthorizationUrl(request: HttpExchange) {
+        respond(request, """{ "authorizationUrl": "${oauth?.getAuthorizationURL()}" }""".toByteArray(), MIMETYPE_JSON);
     }
 }
