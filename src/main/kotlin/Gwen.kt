@@ -5,11 +5,10 @@ package com.badlogicgames.gwen
 import com.esotericsoftware.minlog.Log
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
-import java.io.File
-import java.io.FileOutputStream
-import java.io.FileReader
-import java.io.FileWriter
+import java.io.*
 import java.net.NetworkInterface
+import java.net.ServerSocket
+import java.net.Socket
 
 val appPath: File by lazy {
     val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
@@ -55,7 +54,7 @@ data class GwenConfig(val clientId: String,
                       val recordStereo: Boolean,
                       val pubSubPort: Int);
 
-enum class GwenModelType { Question, Command }
+enum class GwenModelType (val id: Int) { Question(0), Command(1) }
 
 data class GwenModel(val name: String, val file: String, val type: GwenModelType, @kotlin.jvm.Transient var detector: HotwordDetector);
 
@@ -64,6 +63,7 @@ class GwenEngine {
     @Volatile var running = false;
     @Volatile var models: Array<GwenModel> = emptyArray();
     var thread: Thread? = null;
+    var pubSubServer: GwenPubSubServer? = null;
 
     @Synchronized fun start(config: GwenConfig, oauth: OAuth) {
         stop();
@@ -81,12 +81,12 @@ class GwenEngine {
                         synchronized(this) {
                             for (model in models) {
                                 if (model.detector.detect(audioRecorder.getShortData())) {
+                                    pubSubServer?.hotwordDetected(model.name, model.type.id);
                                     when (model.type) {
                                         GwenModelType.Question -> {
                                             Log.info("QA hotword detected, starting assistant conversation");
-                                            while (assistant.converse()) {
-                                                Log.info("Continuing conversation");
-                                            }
+                                            // FIXME should we continue conversation?
+                                            assistant.converse();
                                             Log.info("Conversation ended");
                                             Log.info("Waiting for hotword");
                                         }
@@ -95,6 +95,7 @@ class GwenEngine {
                                             val command = assistant.speechToText();
                                             Log.info("Speech-to-text result: '$command'");
                                             Log.info("Waiting for hotword");
+                                            if (!command.isEmpty()) pubSubServer?.command(model.name, command);
                                         }
                                     }
                                     break;
@@ -112,7 +113,9 @@ class GwenEngine {
                 }
             });
             thread.isDaemon = true;
+            thread.name = "Gwen engine thread";
             this.thread = thread;
+            pubSubServer = GwenPubSubServer(config.pubSubPort);
             thread.start();
         } catch (t: Throwable) {
             Log.error("Couldn't reload Gwen", t);
@@ -181,12 +184,151 @@ class GwenEngine {
     }
 
     fun stop() {
-        Log.info("Stopping Gwen");
         if (running) {
+            Log.info("Stopping Gwen");
             synchronized(this) {
                 running = false;
             }
             thread?.join();
+            pubSubServer?.close();
+        }
+    }
+}
+
+class GwenPubSubServer: Closeable {
+    enum class MessageType(val id: Int) {
+        HOTWORD(0),
+        COMMAND(1)
+    }
+
+    val serverSocket: ServerSocket;
+    val thread: Thread;
+    val clients = mutableListOf<Socket>();
+    @Volatile var running = true;
+
+    constructor(port: Int) {
+        serverSocket = ServerSocket(port);
+        thread = Thread(fun () {
+            while (running) {
+                val client = serverSocket.accept();
+                synchronized(clients) {
+                    clients.add(client);
+                }
+                Log.info("New pub/sub client (${client.inetAddress.hostAddress})");
+            }
+        });
+        thread.isDaemon = true;
+        thread.name = "Pub/sub server thread";
+        thread.start();
+        Log.info("Started pub/sub server on port $port");
+    }
+
+    fun hotwordDetected(name: String, type: Int) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(MessageType.HOTWORD.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        out.writeInt(type);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    fun command(name: String, text: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(MessageType.COMMAND.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        val textBytes = text.toByteArray();
+        out.writeInt(textBytes.size);
+        out.write(textBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    @Synchronized private fun broadcast(data: ByteArray) {
+        for (client in clients) {
+            try {
+                client.outputStream.write(data);
+            } catch(t: Throwable) {
+                Log.info("Client ${client.inetAddress.hostAddress} disconnected");
+            }
+        }
+    }
+
+    override fun close() {
+        synchronized(this) {
+            if (running) {
+                Log.info("Stopping pub/sub server");
+                running = false;
+                serverSocket.close();
+                for (client in clients) client.close();
+                thread.interrupt();
+                thread.join();
+            }
+        }
+    }
+}
+
+abstract class GwenPubSubClient: Closeable {
+    val socket: Socket;
+    val thread: Thread;
+    @Volatile var running = true;
+
+    constructor(host: String, port: Int) {
+        socket = Socket(host, port);
+        thread = Thread(fun() {
+            val input = DataInputStream(socket.inputStream);
+            Log.info("Started pub/sub client");
+            while(running) {
+                val typeId = input.readByte();
+                when(typeId.toInt()) {
+                    GwenPubSubServer.MessageType.HOTWORD.id -> {
+                        val nameSize = input.readInt();
+                        val bytes = ByteArray(nameSize);
+                        input.readFully(bytes);
+                        hotword(String(bytes), when(input.readInt()) {
+                            0 -> GwenModelType.Question
+                            1 -> GwenModelType.Command
+                            else -> throw Exception("Unknown model type");
+                        });
+                    }
+                    GwenPubSubServer.MessageType.COMMAND.id -> {
+                        val nameSize = input.readInt();
+                        val nameBytes = ByteArray(nameSize);
+                        input.readFully(nameBytes);
+
+                        val textSize = input.readInt();
+                        val textBytes = ByteArray(textSize);
+                        input.readFully(textBytes);
+
+                        command(String(nameBytes), String(textBytes));
+                    }
+                    else -> throw Exception("Unknown message type $typeId")
+                }
+            }
+        });
+        thread.isDaemon = true;
+        thread.name = "Pub/sub client thread";
+        thread.start();
+    }
+
+    abstract fun hotword(name: String, type: GwenModelType);
+
+    abstract fun command(name: String, text: String);
+
+    override fun close() {
+        synchronized(this) {
+            if (running) {
+                Log.info("Stopping pub/sub client");
+                running = false;
+                socket.close();
+                thread.interrupt();
+                thread.join();
+            }
         }
     }
 }
@@ -260,6 +402,15 @@ fun main(args: Array<String>) {
             printWebInterfaceUrl();
             try {
                 gwen.start(config!!, oauth!!);
+                Thread.sleep(1000);
+                object : GwenPubSubClient("localhost", 8778) {
+                    override fun hotword(name: String, type: GwenModelType) {
+                        println("Pub/sub client received hotword $name $type");
+                    }
+                    override fun command(name: String, text: String) {
+                        println("Pub/sub client received command $name $text");
+                    }
+                };
             } catch (t: Throwable) {
                 Log.error("Couldn't start Gwen, setup through webinterface required", t);
             }
