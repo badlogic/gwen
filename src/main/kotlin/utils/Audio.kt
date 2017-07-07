@@ -59,7 +59,11 @@ class LocalAudioRecorder: AudioRecorder {
     }
 
     override fun getByteData(): ByteArray {
-        return byteData;
+        return if (_stereo) {
+            val halfData = ByteArray(byteData.size / 2);
+            System.arraycopy(byteData, 0, halfData, 0, byteData.size / 2);
+            return halfData;
+        } else byteData;
     }
 
     override fun getShortData(): ShortArray {
