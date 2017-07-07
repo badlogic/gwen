@@ -45,15 +45,15 @@ class LocalAudioRecorder: AudioRecorder {
             if (result == -1) throw Exception("Error reading byteData from microphone");
             numRead += result;
         }
-		  if (_stereo) {
-		      var ii = byteData.size - 2;
-		      for (i in 2..ii step 4) {
-				    byteData[i] = byteData[ii];
-				    byteData[i + 1] = byteData[ii + 1];
-					 ii -= 4;
-				}
-		      numRead.shr(1);
-		  }
+        if (_stereo) {
+            var ii = 4;
+            for (i in 2..byteData.size / 2 - 1 step 2) {
+                byteData[i] = byteData[ii];
+                byteData[i + 1] = byteData[ii + 1];
+                ii += 4;
+            }
+            numRead.shr(1);
+        }
         ByteBuffer.wrap(byteData, 0, numRead).order(ByteOrder.nativeOrder()).asShortBuffer().get(shortData);
     }
 
