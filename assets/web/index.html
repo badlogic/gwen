@@ -3,101 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <title>Gwen</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
-<div id="models">
-    <h2>Models</h2>
+    <h4>Status</h4>
+    <div id="status"></div>
 
-    <form id="newModel">
-        <div>
-            <label for="modelName">Model:</label>
-            <input type="text" id="modelName" placeholder="name">
-        </div>
-
-        <div>
-            <label for="modelType">Type:</label>
-            <select id="modelType">
-                <option value="Question">Question Answering</option>
-                <option value="Command">Command</option>
-            </select>
-        </div>
-        <div>
-            <label for="modelFile">File:</label>
-            <input type="file" id="modelFile">
-        </div>
-        <div>
-            <button type="button" id="modelSave">Save</button>
-        </div>
-    </form>
-
-    <table id="modelList">
-
-    </table>
+    <h4>Log</h4>
+    <div id="log"></div>
 </div>
 
 </body>
 <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-<script type="text/javascript" src="gwen.js"></script>
+<script type="text/javascript" src="js/gwen.js"></script>
 <script type="text/javascript" >
-refreshModels();
 
-$("#modelSave").click(function() {
-    var formData = new FormData();
-    formData.append("modelName", $("#modelName").val());
-    formData.append("modelType", $("#modelType").val());
-    formData.append("file", $("#modelFile")[0].files[0]);
+var timeStamp = 0;
 
+function refreshStatus() {
     $.ajax({
-        url: "modelSave",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
+        url: "status",
+        data: { timeStamp: timeStamp },
         success: function(data) {
-            $("#modelName").val("");
-            $("#modelFile").val("");
-            applyModels(data);
+            timeStamp = data.timeStamp;
+            $("#status").text(data.status ? "Running" : "Not running");
+
+            var logs = $("#log");
+            for (var i = 0; i < data.log.length; i++) {
+                var log = data.log[i];
+                logs.html(logs.html() + log.second + "<br>");
+            }
         },
         error: function(data) {
-            alert("Couldn't save model");
-        }
-    })
-})
-
-function refreshModels() {
-    $.ajax({
-        url: "models",
-        success: applyModels,
-        error: function(data) {
+             $("#status").text("Not running");
         }
     });
 }
 
-function applyModels(data) {
-    $("#modelList").empty();
-    $("#modelList").append("<tr><th>Name</th><th>Type</th><th></th></tr>")
-
-    for (var i = 0; i < data.length; i++) {
-        var model = data[i];
-        var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td><td><button>Delete</button></td></tr>");
-
-        (function() {
-            var name = model.name;
-            modelHtml.find("button").click(function(el) {
-                $.ajax({
-                    url: "modelDelete",
-                    data: { name: name },
-                    success: applyModels,
-                    error: function(data) {
-                        alert("Couldn't delete model " + name);
-                    }
-                });
-            })
-        })();
-        $("#modelList").append(modelHtml);
-    }
-}
+setInterval(refreshStatus, 100);
 
 </script>
 </html>

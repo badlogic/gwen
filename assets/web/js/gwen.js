@@ -1,0 +1,1 @@
+$("body").prepend('<div class="no-print"><a href="index.html">Status</a> | <a href="models.html">Models</a> | <a href="config.html">Config</a><span style="float:right"><b>Gwen</b></span><br><hr style="clear:both"></div>');

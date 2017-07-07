@@ -1,0 +1,255 @@
+
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 400;
+  src: url(/fonts/SourceCodePro-Regular.woff2) format('woff2'), url(/fonts/SourceCodePro-Regular.woff) format('woff');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 700;
+  src: url(/fonts/SourceCodePro-Bold.woff2) format('woff2'), url(/fonts/SourceCodePro-Bold.woff) format('woff');
+}
+
+TD, TH, PRE, BODY, INPUT, BUTTON, SELECT {
+   font-family: "Source Code Pro", "DejaVu Sans Mono", "Lucida Console", "Monaco", monospace;
+   font-size: 11pt;
+   line-height: 1.16em;
+}
+@media screen and (min-width: 0px) and (max-width: 1024px) {
+   TD, TH, PRE, BODY, INPUT, BUTTON, SELECT {
+      font-size: 9.5pt;
+   }
+}
+
+A {
+   text-decoration: none;
+}
+A:hover {
+   text-decoration: underline;
+}
+A:link, A:visited {
+   color: blue;
+}
+A:active {
+   color: orange;
+}
+
+FORM {
+   margin: 0;
+}
+
+HR {
+   margin: 1em 0;
+}
+
+INPUT[type=text], SELECT, .input, TEXTAREA {
+  border: 1px solid #000;
+  background-color: #f8f8f8;
+  line-height: 1.4em;
+}
+INPUT[type="radio"], INPUT[type="checkbox"] {
+   vertical-align: bottom;
+   margin-right: 6px;
+   margin-bottom: 2px;
+}
+LABEL {
+   vertical-align: bottom;
+   display: inline-block;
+   padding-bottom: 3px;
+}
+
+PRE {
+   margin: 0px;
+}
+
+TABLE {
+   border-spacing: 0;
+   border-collapse: collapse;
+   border-width: 0;
+}
+TD {
+   padding: 0;
+}
+TH {
+   white-space: nowrap;
+   font-weight: bold;
+   text-align: left;
+   vertical-align: top;
+}
+
+.text {
+   width: 330px;
+}
+.text-short {
+   width: 165px;
+}
+.number {
+   width: 100px;
+}
+
+.r { text-align: right; }
+.r1 > TBODY > TR > TD:nth-child(1) { text-align: right; }
+.r2 > TBODY > TR > TD:nth-child(2) { text-align: right; }
+.r3 > TBODY > TR > TD:nth-child(3) { text-align: right; }
+.r4 > TBODY > TR > TD:nth-child(4) { text-align: right; }
+.r5 > TBODY > TR > TD:nth-child(5) { text-align: right; }
+.r6 > TBODY > TR > TD:nth-child(6) { text-align: right; }
+.r7 > TBODY > TR > TD:nth-child(7) { text-align: right; }
+.r8 > TBODY > TR > TD:nth-child(8) { text-align: right; }
+.r9 > TBODY > TR > TD:nth-child(9) { text-align: right; }
+.r10 > TBODY > TR > TD:nth-child(10) { text-align: right; }
+.r11 > TBODY > TR > TD:nth-child(11) { text-align: right; }
+.r12 > TBODY > TR > TD:nth-child(12) { text-align: right; }
+.r13 > TBODY > TR > TD:nth-child(13) { text-align: right; }
+
+.c { text-align: center; }
+.c1 > TBODY > TR > TD:nth-child(1) { text-align: center; }
+.c2 > TBODY > TR > TD:nth-child(2) { text-align: center; }
+.c3 > TBODY > TR > TD:nth-child(3) { text-align: center; }
+.c4 > TBODY > TR > TD:nth-child(4) { text-align: center; }
+.c5 > TBODY > TR > TD:nth-child(5) { text-align: center; }
+.c6 > TBODY > TR > TD:nth-child(6) { text-align: center; }
+.c7 > TBODY > TR > TD:nth-child(7) { text-align: center; }
+.c8 > TBODY > TR > TD:nth-child(8) { text-align: center; }
+.c9 > TBODY > TR > TD:nth-child(9) { text-align: center; }
+.c10 > TBODY > TR > TD:nth-child(10) { text-align: center; }
+.c11 > TBODY > TR > TD:nth-child(11) { text-align: center; }
+.c12 > TBODY > TR > TD:nth-child(12) { text-align: center; }
+.c13 > TBODY > TR > TD:nth-child(13) { text-align: center; }
+
+.m { vertical-align: middle !important; }
+
+.table {
+   border-top: 1px solid #A9A9A9;
+   border-left: 1px solid #A9A9A9;
+}
+.table > TBODY > TR > TH {
+   background-color: #CCCCCC;
+   padding: 4px 8px 4px 8px;
+}
+.table > TBODY > TR > TD {
+   white-space: nowrap;
+   padding: 8px;
+   vertical-align: top;
+   border-bottom: 1px solid #A9A9A9;
+   border-right: 1px solid #A9A9A9;
+}
+.table > TBODY > TR > TH {
+   border-right: 1px solid #A9A9A9;
+   border-bottom: 1px solid #A9A9A9;
+}
+
+.table.horizBorder {
+   border-right: 1px solid #A9A9A9;
+}
+.table.horizBorder > TBODY > TR > TD {
+   border-right-width: 0;
+}
+
+.form > TBODY > TR > TD, .form > TBODY > TR > TH {
+   border-left: 5px solid transparent;
+   border-top: 5px solid transparent;
+}
+.form > TBODY > TR > TD:first-child, .form > TBODY > TR > TH:first-child {
+   border-left: 0;
+}
+.form > TBODY > TR:first-child > TD, .form > TBODY > TR:first-child > TH {
+   border-top: 0;
+}
+.form > TBODY > TR > TH {
+   text-align: right;
+   padding: 4px 6px 0 16px;
+}
+.form .textRow TH {
+   padding-bottom: 4px;
+}
+.textForm > TBODY > TR > TD, .textTD {
+   padding-top: 4px;
+   vertical-align: top;
+}
+
+.disabledRow TD {
+   color: #aaaaaa;
+}
+.disabledRow A {
+   color: #5555aa;
+}
+
+.pad {
+   padding: 5px;
+}
+.hide {
+   visibility: hidden;
+}
+
+.click {
+   cursor: pointer;
+   font-style: normal;
+}
+.click:hover {
+   background-color: #F3F3F3;
+}
+
+.items {
+   display: inline-block;
+   min-width: 200px;
+   height: 200px;
+   padding: 0 5px 5px 5px;
+   cursor: default;
+}
+.items TABLE {
+   width: 100%;
+}
+.items TD {
+   white-space: nowrap;
+   padding-top: 6px;
+   border-bottom: 1px dotted #a8a8a8;
+   cursor: text;
+}
+.items TR TD:first-child {
+   vertical-align: bottom;
+   padding-right: 2px;
+   border-bottom-width: 0;
+   cursor: pointer;
+}
+.items DIV:first-child TD {
+   padding-top: 0;
+}
+.items DIV:hover {
+   background-color: #eeeeee;
+}
+.items TD:nth-child(2) {
+   width: 100%;
+   padding-right: 4px;
+   text-align: right;
+}
+.items INPUT, .items BUTTON {
+   width: 65px;
+   border-width: 0;
+   text-align: right;
+   background-color: inherit;
+}
+
+.results {
+   display: inline-block;
+   min-width: 200px;
+   cursor: default;
+   overflow-x: hidden;
+   overflow-y: auto;
+}
+.results DIV {
+   padding: 4px;
+   white-space: nowrap;
+}
+.results DIV:hover {
+   background-color: #eeeeee;
+}
+
+@media print {
+   .noprint, .noprint * {
+      display: none !important;
+   }
+}
+

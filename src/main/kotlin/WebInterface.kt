@@ -49,6 +49,7 @@ class WebInterface : HttpHandler {
             "/models" -> handleModels(request);
             "/modelSave" -> handleModelSave(request);
             "/modelDelete" -> handleModelDelete(request);
+            "/status" -> handleStatus(request);
             else -> handleFile(request);
         }
     }
@@ -214,5 +215,13 @@ class WebInterface : HttpHandler {
 
     private fun handleAuthorizationUrl(request: HttpExchange) {
         respond(request, """{ "authorizationUrl": "${oauth?.getAuthorizationURL()}" }""".toByteArray(), MIMETYPE_JSON);
+    }
+
+    private fun  handleStatus(request: HttpExchange) {
+        val params = parseParams(request);
+        val timeStamp = System.currentTimeMillis();
+        val requestTimeStamp = params["timeStamp"];
+        val logs = Gson().toJson(logger.getSince(if (requestTimeStamp != null) requestTimeStamp.toLong() else 0));
+        respond(request, """{ "status": ${gwen.running}, "log": ${logs}, "timeStamp": $timeStamp }""".toByteArray(), MIMETYPE_JSON);
     }
 }

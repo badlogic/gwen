@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Gwen- Account Setup</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 </head>
 <body>
 
@@ -14,20 +15,21 @@
     <p><a id="authorizationUrl" target="_blank">Authorize Gwen to use your account for Google Assistant</a>, then paste the code you receive below</p>
 
     <form>
-        <div>
-            <label for="code">Code</label>
-            <input type="text" id="code" placeholder="code"/>
-        </div>
-        <div>
-            <button type="button" id="accountSave">Save</button>
-        </div>
+        <table class="form">
+            <tr>
+                <td><label for="code">Code</label></td>
+                <td><input type="text" id="code" placeholder="code"/></td>
+            </tr>
+
+            <tr>
+                <td colspan="2"><button type="button" id="accountSave">Save</button></td>
+            </tr>
+        </table>
     </form>
 </div>
 
 </body>
 
-<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-<script type="text/javascript" src="gwen.js"></script>
 <script type="text/javascript">
 $.ajax({
     url: "authorizationUrl",

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Gwen - Project Setup</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 </head>
 <body>
 
@@ -15,23 +16,24 @@
     <p>For more detailed information on how to create the client ID and client secret, visit the <a href="https://developers.google.com/assistant/sdk/prototype/getting-started-other-platforms/config-dev-project-and-account" target="_blank">Google Assistant SDK documentation</a></p>
 
     <form>
-        <div>
-            <label for="clientId">Client ID:</label>
-            <input type="text" id="clientId" placeholder="client id"/>
-        </div>
-        <div>
-            <label for="clientSecret">Client secret:</label>
-            <input type="text" id="clientSecret" placeholder="client secret"/>
-        </div>
-        <div>
-            <button type="button" id="projectSave">Save</button>
-        </div>
+        <table class="form">
+            <tr>
+                <td><label for="clientId">Client ID:</label></td>
+                <td><input type="text" id="clientId" placeholder="client id"/></td>
+            </tr>
+            <tr>
+                <td><label for="clientSecret">Client secret:</label></td>
+                <td><input type="text" id="clientSecret" placeholder="client secret"/></td>
+            </tr>
+            <tr>
+                <td colspan="2"><button type="button" id="projectSave">Save</button></td>
+            </tr>
+        </table>
     </form>
 </div>
 
 </body>
 
-<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script type="text/javascript">
 $("#projectSave").click(function () {
 $("#projectSaveError").hide();

@@ -24,15 +24,21 @@ val appPath: File by lazy {
 
 class Logger : Log.Logger {
     val writer: FileWriter;
+    val logs = mutableListOf<Pair<Long, String>>();
 
     constructor(file: File) {
         writer = FileWriter(file, true);
     }
 
-    override fun print(message: String?) {
+    @Synchronized override fun print(message: String) {
         super.print(message)
         writer.write(message);
         writer.flush();
+        logs.add(Pair(System.currentTimeMillis(), message));
+    }
+
+    @Synchronized fun getSince(timeStamp: Long): List<Pair<Long, String>> {
+        return logs.filter { it.first >= timeStamp }
     }
 }
 

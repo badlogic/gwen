@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gwen</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+<h4>Models</h4>
+
+<button onclick="document.location.href='newmodel.html'" style="margin-bottom: 1.5em;">New model</button>
+
+<table id="modelList" class="table">
+    <tbody>
+    </tbody>
+</table>
+
+</body>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script type="text/javascript" src="js/gwen.js"></script>
+<script type="text/javascript" >
+refreshModels();
+
+function refreshModels() {
+    $.ajax({
+        url: "models",
+        success: applyModels,
+        error: function(data) {
+        }
+    });
+}
+
+function applyModels(data) {
+    $("#modelList tbody").empty();
+    $("#modelList tbody").append("<tr><th>Name</th><th>Type</th><th></th></tr>")
+
+    for (var i = 0; i < data.length; i++) {
+        var model = data[i];
+        var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td><td><button>Delete</button></td></tr>");
+
+        (function() {
+            var name = model.name;
+            modelHtml.find("button").click(function(el) {
+                $.ajax({
+                    url: "modelDelete",
+                    data: { name: name },
+                    success: applyModels,
+                    error: function(data) {
+                        alert("Couldn't delete model " + name);
+                    }
+                });
+            })
+        })();
+        $("#modelList tbody").append(modelHtml);
+    }
+}
+
+</script>
+</html>
