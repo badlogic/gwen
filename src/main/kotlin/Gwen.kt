@@ -69,7 +69,7 @@ class GwenEngine {
         stop();
         try {
             val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
-            val audioRecorder = LocalAudioRecorder(16000, 1600);
+            val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
             models = loadModels();
             val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
             val thread = Thread(fun() {
@@ -104,6 +104,7 @@ class GwenEngine {
                         }
                     }
                 } catch(t: Throwable) {
+                    Log.error("An unexpected error occurred.", t);
                     running = false;
                 } finally {
                     for (model in models) model.detector.close();

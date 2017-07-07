@@ -18,16 +18,18 @@ class LocalAudioRecorder: AudioRecorder {
     private val byteData: ByteArray;
     private val shortData: ShortArray;
     private val _samplingRate: Int;
+    private val _stereo: Boolean;
 
-    constructor(samplingRate: Int, samplesPerChunk: Int) {
+    constructor(samplingRate: Int, samplesPerChunk: Int, stereo: Boolean) {
         this._samplingRate = samplingRate;
-        val format = AudioFormat(samplingRate.toFloat(), 16, 1, true, false);
+        this._stereo = stereo;
+        val format = AudioFormat(samplingRate.toFloat(), 16, if (stereo) 2 else 1, true, false);
         val targetInfo = DataLine.Info(TargetDataLine::class.java, format);
         line = AudioSystem.getLine(targetInfo) as TargetDataLine;
         line.open(format);
         line.start();
 
-        byteData = ByteArray(samplesPerChunk * 2);
+        byteData = ByteArray(samplesPerChunk * (if (stereo) 4 else 2));
         shortData = ShortArray(samplesPerChunk);
         Log.info("Started local audio recorder, ${samplingRate}Hz, ${samplesPerChunk} samples per chunk");
     }
@@ -43,6 +45,15 @@ class LocalAudioRecorder: AudioRecorder {
             if (result == -1) throw Exception("Error reading byteData from microphone");
             numRead += result;
         }
+		  if (_stereo) {
+		      var ii = byteData.size - 2;
+		      for (i in 2..ii step 4) {
+				    byteData[i] = byteData[ii];
+				    byteData[i + 1] = byteData[ii + 1];
+					 ii -= 4;
+				}
+		      numRead.shr(1);
+		  }
         ByteBuffer.wrap(byteData, 0, numRead).order(ByteOrder.nativeOrder()).asShortBuffer().get(shortData);
     }
 
