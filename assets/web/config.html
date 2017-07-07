@@ -7,12 +7,71 @@
 </head>
 <body>
 <h4>Config</h4>
-</div>
+
+<form>
+    <table class="form">
+        <tr>
+            <td><label for="playAudioLocally">Play audio locally:</label></td>
+            <td><input id="playAudioLocally" type="checkbox"></td>
+        </tr>
+
+        <tr>
+            <td><label for="recordStereo">Record Stereo:</label></td>
+            <td><input id="recordStereo" type="checkbox"></td>
+        </tr>
+
+        <tr>
+            <td><label for="pubSubPort">Pub/sub port:</label></td>
+            <td><input id="pubSubPort" type="text"></td>
+        </tr>
+
+        <tr>
+            <td colspan="2"><button type="button" id="configSave">Save</button></td>
+        </tr>
+    </table>
+</form>
 
 </body>
 <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script type="text/javascript" src="js/gwen.js"></script>
 <script type="text/javascript" >
+
+refreshConfig();
+
+$("#configSave").click(function() {
+    $.ajax({
+        url: "configSave",
+        data: {
+            playAudioLocally: $("#playAudioLocally").prop("checked"),
+            recordStereo: $("#recordStereo").prop("checked"),
+            pubSubPort: $("#pubSubPort").val()
+        },
+        success: function(data) {
+            applyConfig(data);
+        },
+        error: function(data) {
+            alert("Couldn't save configuration.");
+        }
+    });
+});
+
+function refreshConfig() {
+    $.ajax({
+        url: "config",
+        success: function(data) {
+            applyConfig(data);
+        },
+        error: function(data) {
+            alert("Couldn't get configuration.");
+        }
+    })
+}
+
+function applyConfig(config) {
+    $("#playAudioLocally").prop("checked", config.playAudioLocally);
+    $("#recordStereo").prop("checked", config.recordStereo);
+    $("#pubSubPort").val(config.pubSubPort);
+}
 
 </script>
 </html>

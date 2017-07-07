@@ -49,7 +49,11 @@ data class GwenStatus(val needsClientId: Boolean,
                       val authorizationUrl: String?,
                       val isRunning: Boolean);
 
-data class GwenConfig(val clientId: String, val clientSecret: String);
+data class GwenConfig(val clientId: String,
+                      val clientSecret: String,
+                      val playAudioLocally: Boolean,
+                      val recordStereo: Boolean,
+                      val pubSubPort: Int);
 
 enum class GwenModelType { Question, Command }
 
@@ -61,11 +65,10 @@ class GwenEngine {
     @Volatile var models: Array<GwenModel> = emptyArray();
     var thread: Thread? = null;
 
-    @Synchronized fun start(oauth: OAuth) {
+    @Synchronized fun start(config: GwenConfig, oauth: OAuth) {
         stop();
-
         try {
-            val audioPlayer = LocalAudioPlayer(16000);
+            val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
             val audioRecorder = LocalAudioRecorder(16000, 1600);
             models = loadModels();
             val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
@@ -160,7 +163,7 @@ class GwenEngine {
         models = newModels.toTypedArray();
     }
 
-    fun  deleteModel(modelName: String) {
+    @Synchronized fun  deleteModel(modelName: String) {
         Log.info("Deleting model $modelName");
 
         val newModels = models.toMutableList();
@@ -177,11 +180,12 @@ class GwenEngine {
         models = newModels.toTypedArray();
     }
 
-    @Synchronized fun stop() {
+    fun stop() {
         Log.info("Stopping Gwen");
         if (running) {
-            running = false;
-            val thread = this.thread;
+            synchronized(this) {
+                running = false;
+            }
             thread?.join();
         }
     }
@@ -255,7 +259,7 @@ fun main(args: Array<String>) {
             startWebInterface();
             printWebInterfaceUrl();
             try {
-                gwen.start(oauth!!);
+                gwen.start(config!!, oauth!!);
             } catch (t: Throwable) {
                 Log.error("Couldn't start Gwen, setup through webinterface required", t);
             }

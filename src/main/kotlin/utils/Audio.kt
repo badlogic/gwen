@@ -64,7 +64,7 @@ interface AudioPlayer: Closeable {
     fun  getSamplingRate(): Int;
 }
 
-class LocalAudioPlayer: AudioPlayer, Closeable {
+class LocalAudioPlayer: AudioPlayer {
     private val line: SourceDataLine;
     private val _samplingRate: Int;
 
@@ -93,5 +93,21 @@ class LocalAudioPlayer: AudioPlayer, Closeable {
 
     override fun close() {
         line.close();
+    }
+}
+
+class NullAudioPlayer : AudioPlayer {
+    constructor() {
+        Log.info("Started null audio player");
+    }
+
+    override fun play(audio: ByteArray, offset: Int, length: Int) {
+    }
+
+    override fun getSamplingRate(): Int {
+        return 16000;
+    }
+
+    override fun close() {
     }
 }

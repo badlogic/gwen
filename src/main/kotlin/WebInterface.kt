@@ -41,6 +41,7 @@ class WebInterface : HttpHandler {
             }
         }
 
+        // Laugh, but it works! :D
         when (request.requestURI.path) {
             "/" -> respond(request, File(appPath, "assets/web/index.html").readText().toByteArray(), MIMETYPE_HTML)
             "/projectSave" -> handleProjectSave(request);
@@ -50,6 +51,8 @@ class WebInterface : HttpHandler {
             "/modelSave" -> handleModelSave(request);
             "/modelDelete" -> handleModelDelete(request);
             "/status" -> handleStatus(request);
+            "/config" -> handleGetConfig(request);
+            "/configSave" -> handleSetConfig(request);
             else -> handleFile(request);
         }
     }
@@ -114,7 +117,7 @@ class WebInterface : HttpHandler {
 
         Log.info("Saving project config");
         if (id != null && !id.isEmpty() && secret != null && !secret.isEmpty()) {
-            config = GwenConfig(id, secret);
+            config = GwenConfig(id, secret, true, false, 8778);
             try {
                 FileWriter(File(appPath, "gwen.json")).use {
                     Gson().toJson(config, it);
@@ -151,7 +154,7 @@ class WebInterface : HttpHandler {
             if (oa.isAuthorized()) {
                 oauth = oa;
                 gwen.stop();
-                gwen.start(oa);
+                gwen.start(config!!, oa);
                 redirect(request, "/");
             } else {
                 error(request, "Invalid code, authorization failed", 400);
@@ -174,7 +177,6 @@ class WebInterface : HttpHandler {
             }
             this.parts = result;
         }
-
     }
 
     private fun handleModelSave(request: HttpExchange) {
@@ -223,5 +225,44 @@ class WebInterface : HttpHandler {
         val requestTimeStamp = params["timeStamp"];
         val logs = Gson().toJson(logger.getSince(if (requestTimeStamp != null) requestTimeStamp.toLong() else 0));
         respond(request, """{ "status": ${gwen.running}, "log": ${logs}, "timeStamp": $timeStamp }""".toByteArray(), MIMETYPE_JSON);
+    }
+
+    private fun  handleGetConfig(request: HttpExchange) {
+        val config = config;
+        if (config == null) {
+            error(request, "Gwen is not configured", 400);
+        } else {
+            respond(request, Gson().toJson(config).toByteArray(), MIMETYPE_JSON);
+        }
+    }
+
+    private fun  handleSetConfig(request: HttpExchange) {
+        val params = parseParams(request);
+        val playAudioLocally = params["playAudioLocally"]?.toBoolean();
+        val recordStereo = params["recordStereo"]?.toBoolean();
+        val pubSubPort = params["pubSubPort"]?.toInt();
+
+        if (playAudioLocally == null || recordStereo == null || pubSubPort == null) {
+            error(request, "Invalid config", 400);
+        } else {
+            val config = config;
+            if (config == null) {
+                error(request, "Gwen is not configured", 400);
+            } else {
+                val newConfig = GwenConfig(config.clientId, config.clientSecret, playAudioLocally, recordStereo, pubSubPort);
+                val oauth = oauth;
+                if (oauth == null) {
+                    error(request, "Gwen is not configured", 400);
+                } else {
+                    gwen.stop();
+                    gwen.start(newConfig, oauth);
+                    com.badlogicgames.gwen.config = newConfig;
+                    FileWriter(File(appPath, "gwen.json")).use {
+                        Gson().toJson(newConfig, it);
+                    }
+                    handleGetConfig(request);
+                }
+            }
+        }
     }
 }
