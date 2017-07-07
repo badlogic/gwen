@@ -1,6 +1,7 @@
 package com.badlogicgames.gwen
 
 import com.esotericsoftware.minlog.Log
+import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -31,7 +32,7 @@ class LocalAudioRecorder: AudioRecorder {
 
         byteData = ByteArray(samplesPerChunk * (if (stereo) 4 else 2));
         shortData = ShortArray(samplesPerChunk);
-        Log.info("Started local audio recorder, ${samplingRate}Hz, ${samplesPerChunk} samples per chunk");
+        Log.info("Started local audio recorder, ${samplingRate}Hz, stereo: $_stereo, ${samplesPerChunk} samples per chunk");
     }
 
     override fun getSamplingRate(): Int {
@@ -121,4 +122,20 @@ class NullAudioPlayer : AudioPlayer {
 
     override fun close() {
     }
+}
+
+fun main(args: Array<String>) {
+    val recorder = LocalAudioRecorder(16000, 1600, true);
+    var start = System.nanoTime();
+    val bytes = ByteArrayOutputStream();
+    println("Recording");
+    while (System.nanoTime() - start < 5000000000L) {
+        recorder.read();
+        bytes.write(recorder.getByteData());
+    }
+
+    println("Playback");
+    val player = LocalAudioPlayer(16000);
+    val audio = bytes.toByteArray();
+    player.play(audio, 0, audio.size);
 }
