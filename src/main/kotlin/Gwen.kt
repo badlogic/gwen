@@ -12,10 +12,11 @@ import java.net.Socket
 
 val appPath: File by lazy {
     val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
+    val pathText = path.absolutePath.replace('\\', '/');
     when {
-        path.absolutePath.endsWith("build/classes/main") -> path.parentFile.parentFile.parentFile
-        path.absolutePath.endsWith("build/libs") -> path.parentFile.parentFile
-        path.absolutePath.endsWith("bin") -> path.parentFile
+        pathText.endsWith("build/classes/main") -> path.parentFile.parentFile.parentFile
+        pathText.endsWith("build/libs") -> path.parentFile.parentFile
+        pathText.endsWith("bin") -> path.parentFile
         !path.isDirectory -> path.parentFile
         else -> path
     }
