@@ -2,6 +2,7 @@
 
 package com.badlogicgames.gwen
 
+import com.esotericsoftware.minlog.Log.*
 import com.esotericsoftware.minlog.Log
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
@@ -9,6 +10,7 @@ import java.io.*
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import utils.MultiplexOutputStream
 
 val appPath: File by lazy {
     val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
@@ -23,17 +25,14 @@ val appPath: File by lazy {
 }
 
 class Logger : Log.Logger {
-    val writer: FileWriter;
     val logs = mutableListOf<Pair<Long, String>>();
 
-    constructor(file: File) {
-        writer = FileWriter(file, true);
-    }
+	constructor () {
+	}
 
-    @Synchronized override fun print(message: String) {
+	@Synchronized override fun print(message: String) {
         super.print(message)
-        writer.write(message);
-        writer.flush();
+		 if (logs.size > 20000) logs.removeAt(0);
         logs.add(Pair(System.currentTimeMillis(), message));
     }
 
@@ -42,7 +41,7 @@ class Logger : Log.Logger {
     }
 }
 
-val logger by lazy { Logger(File(appPath, "/log.txt")); }
+val logger by lazy { Logger(); }
 
 data class GwenStatus(val needsClientId: Boolean,
                       val needsAuthorization: Boolean,
@@ -76,7 +75,7 @@ class GwenEngine {
 	            val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
 	            val thread = Thread(fun() {
 	                try {
-	                    Log.info("Gwen started");
+	                    info("Gwen started");
 	                    running = true;
 	                    while (running) {
 	                        audioRecorder.read();
@@ -86,17 +85,17 @@ class GwenEngine {
 	                                    pubSubServer?.hotwordDetected(model.name, model.type.id);
 	                                    when (model.type) {
 	                                        GwenModelType.Question -> {
-	                                            Log.info("QA hotword detected, starting assistant conversation");
+	                                            info("QA hotword detected, starting assistant conversation");
 	                                            // FIXME should we continue conversation?
 	                                            assistant.converse();
-	                                            Log.info("Conversation ended");
-	                                            Log.info("Waiting for hotword");
+	                                            info("Conversation ended");
+	                                            info("Waiting for hotword");
 	                                        }
 	                                        GwenModelType.Command -> {
-	                                            Log.info("Command hotword detected, starting speech-to-text");
+	                                            info("Command hotword detected, starting speech-to-text");
 	                                            val command = assistant.speechToText();
-	                                            Log.info("Speech-to-text result: '$command'");
-	                                            Log.info("Waiting for hotword");
+	                                            info("Speech-to-text result: '$command'");
+	                                            info("Waiting for hotword");
 	                                            if (!command.isEmpty()) pubSubServer?.command(model.name, command);
 	                                        }
 	                                    }
@@ -106,13 +105,13 @@ class GwenEngine {
 	                        }
 	                    }
 	                } catch(t: Throwable) {
-	                    Log.error("An unexpected error occurred.", t);
+	                    error("An unexpected error occurred.", t);
 	                    running = false;
 	                } finally {
 	                    for (model in models) model.detector.close();
 	                    audioRecorder.close();
 	                    audioPlayer.close();
-	                    Log.info("Gwen stopped");
+	                    info("Gwen stopped");
 	                }
 	            });
 	            thread.isDaemon = true;
@@ -121,7 +120,7 @@ class GwenEngine {
 	            pubSubServer = GwenPubSubServer(config.pubSubPort);
 	            thread.start();
 	        } catch (t: Throwable) {
-	            Log.error("Couldn't reload Gwen", t);
+	            error("Couldn't reload Gwen", t);
 	        }
         }
     }
@@ -130,7 +129,7 @@ class GwenEngine {
         val modelConfig = File(appPath, "models.json");
         val models: Array<GwenModel>;
         if (!modelConfig.exists()) {
-            Log.info("Loading default models");
+            info("Loading default models");
             if (System.getProperty("os.name").contains("Windows")) {
             	models = arrayOf(
             		GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
@@ -151,7 +150,7 @@ class GwenEngine {
         } else {
             models = Gson().fromJson<Array<GwenModel>>(JsonReader(FileReader(File(appPath, "models.json"))), Array<GwenModel>::class.java);
             for (model in models) {
-                Log.info("Loading model ${model.name} (${model.type})")
+                info("Loading model ${model.name} (${model.type})")
 					if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
 						model.detector = SnowboyHotwordDetector(File(appPath, model.file));
 					else
@@ -162,7 +161,7 @@ class GwenEngine {
     }
 
     @Synchronized fun addModel(name: String, fileName: String, type: GwenModelType, modelData: ByteArray) {
-        Log.info("Adding model $name, $type");
+        info("Adding model $name, $type");
 
         val userModelsDir = File(appPath, "usermodels");
         if (!userModelsDir.exists()) userModelsDir.mkdirs();
@@ -183,7 +182,7 @@ class GwenEngine {
     }
 
     @Synchronized fun deleteModel(modelName: String) {
-        Log.info("Deleting model $modelName");
+        info("Deleting model $modelName");
 
         val newModels = models.toMutableList();
         newModels.removeIf() {
@@ -200,7 +199,7 @@ class GwenEngine {
     }
     
     @Synchronized fun triggerModel(modelName: String) {
-   	 Log.info("Triggering model $modelName");
+   	 info("Triggering model $modelName");
    	 
    	 val newModels = models.toMutableList();
    	 newModels.removeIf() {
@@ -213,7 +212,7 @@ class GwenEngine {
 
     fun stop() {
         if (running) {
-            Log.info("Stopping Gwen");
+            info("Stopping Gwen");
             synchronized(this) {
                 running = false;
             }
@@ -242,13 +241,13 @@ class GwenPubSubServer: Closeable {
                 synchronized(clients) {
                     clients.add(client);
                 }
-                Log.info("New pub/sub client (${client.inetAddress.hostAddress})");
+                info("New pub/sub client (${client.inetAddress.hostAddress})");
             }
         });
         thread.isDaemon = true;
         thread.name = "Pub/sub server thread";
         thread.start();
-        Log.info("Started pub/sub server on port $port");
+        info("Started pub/sub server on port $port");
     }
 
     fun hotwordDetected(name: String, type: Int) {
@@ -282,7 +281,7 @@ class GwenPubSubServer: Closeable {
             try {
                 client.outputStream.write(data);
             } catch(t: Throwable) {
-                Log.info("Client ${client.inetAddress.hostAddress} disconnected");
+                info("Client ${client.inetAddress.hostAddress} disconnected");
             }
         }
     }
@@ -290,7 +289,7 @@ class GwenPubSubServer: Closeable {
     override fun close() {
         synchronized(this) {
             if (running) {
-                Log.info("Stopping pub/sub server");
+                info("Stopping pub/sub server");
                 running = false;
                 serverSocket.close();
                 for (client in clients) client.close();
@@ -310,7 +309,7 @@ abstract class GwenPubSubClient: Closeable {
         socket = Socket(host, port);
         thread = Thread(fun() {
             val input = DataInputStream(socket.inputStream);
-            Log.info("Started pub/sub client");
+            info("Started pub/sub client");
             while(running) {
                 val typeId = input.readByte();
                 when(typeId.toInt()) {
@@ -351,7 +350,7 @@ abstract class GwenPubSubClient: Closeable {
     override fun close() {
         synchronized(this) {
             if (running) {
-                Log.info("Stopping pub/sub client");
+                info("Stopping pub/sub client");
                 running = false;
                 socket.close();
                 thread.interrupt();
@@ -371,14 +370,14 @@ fun loadConfig(): GwenConfig? {
     try {
         val configFile = File(appPath, "gwen.json");
         if (!configFile.exists()) {
-            Log.debug("No config file found");
+            debug("No config file found");
             return null;
         } else {
-            Log.debug("Loading config")
+            debug("Loading config")
             return Gson().fromJson<GwenConfig>(JsonReader(FileReader(File(appPath, "gwen.json"))), GwenConfig::class.java);
         }
     } catch (e: Throwable) {
-        Log.error("Error loading config", e);
+        error("Error loading config", e);
         return null;
     }
 }
@@ -396,7 +395,7 @@ fun loadOAuth(config: GwenConfig): OAuth {
         try {
             oauth.getCredentials();
         } catch (t: Throwable) {
-            Log.error("Couldn't authorize", t);
+            error("Couldn't authorize", t);
         }
     }
     return oauth;
@@ -415,10 +414,24 @@ private fun printWebInterfaceUrl() {
 
 fun main(args: Array<String>) {
     try {
-        Log.set(Log.LEVEL_DEBUG);
-        Log.setLogger(logger);
+		 setLogger(logger);
+		 for (arg in args) {
+			 if (arg.equals("debug", ignoreCase = true))
+				 DEBUG();
+			 else if (arg.equals("trace", ignoreCase = true)) //
+				 TRACE();
+		 }
 
-        config = loadConfig();
+		 var logFile = File(appPath, "/log.txt");
+		 try {
+			 var output = FileOutputStream(logFile);
+			 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
+			 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
+		 } catch (ex:Throwable) {
+			 warn("Unable to write log file.", ex);
+		 }
+
+		 config = loadConfig();
         config?.let { oauth = loadOAuth(it); };
 
         if (config == null || oauth == null || !oauth!!.isAuthorized()) {
@@ -440,10 +453,10 @@ fun main(args: Array<String>) {
                     }
                 };
             } catch (t: Throwable) {
-                Log.error("Couldn't start Gwen, setup through webinterface required", t);
+                error("Couldn't start Gwen, setup through webinterface required", t);
             }
         }
     } catch (e: Throwable) {
-        Log.error("Gwen stopped due to unrecoverable error", e);
+        error("Gwen stopped due to unrecoverable error", e);
     }
 }
