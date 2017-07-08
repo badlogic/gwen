@@ -50,7 +50,6 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         isCompleted = false;
         speechToTextResult = "";
         stopOnRequestText = true;
-        var sentCompleted = false;
 
         requester.onNext(createConfigRequest());
         val timeOutTime = System.currentTimeMillis() + TIME_OUT;
