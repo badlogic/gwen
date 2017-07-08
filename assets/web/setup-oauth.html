@@ -1,58 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Gwen- Account Setup</title>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
-    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+	<meta charset="UTF-8">
+	<title>Gwen- Account Setup</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 </head>
 <body>
 
 <div id="account">
-    <h2>Google Account</h2>
-    <p>Google Assistant requires you to login via your Google account.</p>
+	<h2>Google Account</h2>
+	<p>Google Assistant requires you to login via your Google account.</p>
 
-    <p><a id="authorizationUrl" target="_blank">Authorize Gwen to use your account for Google Assistant</a>, then paste the code you receive below</p>
+	<p><a id="authorizationUrl" target="_blank">Authorize Gwen to use your account for Google Assistant</a>, then paste the code you receive below</p>
 
-    <form>
-        <table class="form">
-            <tr>
-                <td><label for="code">Code</label></td>
-                <td><input type="text" id="code" placeholder="code"/></td>
-            </tr>
+	<form>
+		<table class="form">
+			<tr>
+				<td><label for="code">Code</label></td>
+				<td><input type="text" id="code" placeholder="code"/></td>
+			</tr>
 
-            <tr>
-                <td colspan="2"><button type="button" id="accountSave">Save</button></td>
-            </tr>
-        </table>
-    </form>
+			<tr>
+				<td colspan="2"><button type="button" id="accountSave">Save</button></td>
+			</tr>
+		</table>
+	</form>
 </div>
 
 </body>
 
 <script type="text/javascript">
 $.ajax({
-    url: "authorizationUrl",
-    success: function(data) {
-        $("#authorizationUrl").attr("href", data.authorizationUrl);
-    },
-    error: function(data) {
-        alert("Couldn't get authorization URL")
-    }
+	url: "authorizationUrl",
+	success: function(data) {
+		$("#authorizationUrl").attr("href", data.authorizationUrl);
+	},
+	error: function(data) {
+		alert("Couldn't get authorization URL")
+	}
 });
 
 $("#accountSave").click(function() {
-    $.ajax({
-        url: "accountSave",
-        data: { code: $("#code").val() },
-        success: function(data) {
-            window.location.href = "/";
-        },
-        error: function(data) {
-            alert("Couldn't authorize your account. Please try again.");
-            $("#code").val("");
-        }
-    })
+	$.ajax({
+		url: "accountSave",
+		data: { code: $("#code").val() },
+		success: function(data) {
+			window.location.href = "/";
+		},
+		error: function(data) {
+			alert("Couldn't authorize your account. Please try again.");
+			$("#code").val("");
+		}
+	})
 });
 
 </script>

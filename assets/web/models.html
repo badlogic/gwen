@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Gwen</title>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+	<meta charset="UTF-8">
+	<title>Gwen</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
 <h4>Models</h4>
@@ -11,8 +11,8 @@
 <button onclick="document.location.href='newmodel.html'" style="margin-bottom: 1.5em;">New model</button>
 
 <table id="modelList" class="table">
-    <tbody>
-    </tbody>
+	<tbody>
+	</tbody>
 </table>
 
 </body>
@@ -22,24 +22,24 @@
 refreshModels();
 
 function refreshModels() {
-    $.ajax({
-        url: "models",
-        success: applyModels,
-        error: function(data) {
-        }
-    });
+	$.ajax({
+		url: "models",
+		success: applyModels,
+		error: function(data) {
+		}
+	});
 }
 
 function applyModels(data) {
-    $("#modelList tbody").empty();
-    $("#modelList tbody").append("<tr><th>Name</th><th>Type</th><th></th></tr>")
+	$("#modelList tbody").empty();
+	$("#modelList tbody").append("<tr><th>Name</th><th>Type</th><th></th></tr>")
 
-    for (var i = 0; i < data.length; i++) {
-        var model = data[i];
-        var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td>"
+	for (var i = 0; i < data.length; i++) {
+		var model = data[i];
+		var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td>"
 			+ "<td><button name='trigger'>Trigger</button> <button name='delete'>Delete</button></td></tr>");
 
-        modelHtml.find("button[name='delete']").click(model.name, function(event) {
+		modelHtml.find("button[name='delete']").click(model.name, function(event) {
 				 $.ajax({
 					  url: "modelDelete",
 					  data: { name: event.data },
@@ -58,8 +58,8 @@ function applyModels(data) {
 					  }
 				 });
 			})
-        $("#modelList tbody").append(modelHtml);
-    }
+		$("#modelList tbody").append(modelHtml);
+	}
 }
 
 </script>

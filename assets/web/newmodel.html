@@ -1,44 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Gwen</title>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+	<meta charset="UTF-8">
+	<title>Gwen</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
 <h4>New Model</h4>
 
 <form id="newModel">
-    <table class="form">
-        <tr>
-            <td><label for="modelName">Model:</label></td>
-            <td><input type="text" id="modelName" placeholder="name"></td>
-        </tr>
+	<table class="form">
+		<tr>
+			<td><label for="modelName">Model:</label></td>
+			<td><input type="text" id="modelName" placeholder="name"></td>
+		</tr>
 
 
-        <tr>
-            <td><label for="modelType">Type:</label></td>
-            <td><select id="modelType">
-                <option value="Question">Question Answering</option>
-                <option value="Command">Command</option>
-            </select>
-            </td>
-        </tr>
+		<tr>
+			<td><label for="modelType">Type:</label></td>
+			<td><select id="modelType">
+				<option value="Question">Question Answering</option>
+				<option value="Command">Command</option>
+			</select>
+			</td>
+		</tr>
 
-        <tr>
-            <td><label for="modelFile">File:</label></td>
-            <td><input type="file" id="modelFile"></td>
-        </tr>
+		<tr>
+			<td><label for="modelFile">File:</label></td>
+			<td><input type="file" id="modelFile"></td>
+		</tr>
 
-        <tr>
-            <td colspan="2"><button id="modelSave" type="reset">Save</button></td>
-        </tr>
-    </table>
+		<tr>
+			<td colspan="2"><button id="modelSave" type="reset">Save</button></td>
+		</tr>
+	</table>
 </form>
 
 <table id="modelList" class="table">
-    <tbody>
-    </tbody>
+	<tbody>
+	</tbody>
 </table>
 
 </body>
@@ -47,29 +47,29 @@
 <script type="text/javascript" >
 
 $("#modelSave").click(function() {
-    var formData = new FormData();
-    formData.append("modelName", $("#modelName").val());
-    formData.append("modelType", $("#modelType").val());
-    formData.append("file", $("#modelFile")[0].files[0]);
+	var formData = new FormData();
+	formData.append("modelName", $("#modelName").val());
+	formData.append("modelType", $("#modelType").val());
+	formData.append("file", $("#modelFile")[0].files[0]);
 
-    $("#modelSave").prop('disabled', true);
+	$("#modelSave").prop('disabled', true);
 
-    $.ajax({
-        url: "modelSave",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(data) {
-            $("#modelName").val("");
-            $("#modelFile").val("");
-            window.location.href = "/models.html";
-        },
-        error: function(data) {
-            alert("Couldn't save model");
-            $("#modelSave").prop('disabled', false);
-        }
-    })
+	$.ajax({
+		url: "modelSave",
+		type: "POST",
+		data: formData,
+		processData: false,
+		contentType: false,
+		success: function(data) {
+			$("#modelName").val("");
+			$("#modelFile").val("");
+			window.location.href = "/models.html";
+		},
+		error: function(data) {
+			alert("Couldn't save model");
+			$("#modelSave").prop('disabled', false);
+		}
+	})
 })
 
 </script>
