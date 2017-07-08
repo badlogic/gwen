@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Gwen</title>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+	<meta charset="UTF-8">
+	<title>Gwen</title>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
-    <h4>Status</h4>
-    <div id="status"></div>
+	<h4>Status</h4>
+	<div id="status"></div>
 	 <button onclick="restart()">Restart</button>
 
-    <h4>Log</h4>
-    <div id="log" style="white-space:pre-wrap"></div>
+	<h4>Log</h4>
+	<div id="log" style="white-space:pre-wrap"></div>
 </div>
 
 </body>
@@ -20,30 +20,33 @@
 <script type="text/javascript" >
 
 var timeStamp = 0;
+var lastRequestedTimeStamp = -1;
 
 function refreshStatus() {
-    $.ajax({
-        url: "status",
-        data: { timeStamp: timeStamp },
-        success: function(data) {
-            timeStamp = data.timeStamp;
-            $("#status").text(data.status ? "Running" : "Not running");
+	if (timeStamp == lastRequestedTimeStamp) return;
+	lastRequestedTimeStamp = timeStamp;
+	$.ajax({
+		url: "status",
+		data: { timeStamp: timeStamp },
+		success: function(data) {
+			timeStamp = data.timeStamp;
+			$("#status").text(data.status ? "Running" : "Not running");
 
-            var logs = $("#log");
-            for (var i = 0; i < data.log.length; i++) {
-                var log = data.log[i];
-                logs.html(logs.html() + log.second + "<br>");
-            }
-        },
-        error: function(data) {
-             $("#status").text("Not running");
-        }
-    });
+			var logs = $("#log");
+			for (var i = 0; i < data.log.length; i++) {
+				var log = data.log[i];
+				logs.html(logs.html() + log.second + "<br>");
+			}
+		},
+		error: function(data) {
+			 $("#status").text("Not running");
+		}
+	});
 }
 setInterval(refreshStatus, 100);
 
 function restart () {
-    $.ajax({ url: "restart" });
+	$.ajax({ url: "restart" });
 }
 
 </script>
