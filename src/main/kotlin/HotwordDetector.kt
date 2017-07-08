@@ -13,7 +13,7 @@ interface HotwordDetector : Closeable {
 
 class SnowboyHotwordDetector : HotwordDetector {
 	val detector: SnowboyDetect;
-	var triggered: Boolean = false;
+	@Volatile var triggered: Boolean = false;
 
     constructor(model: File) {
         val osName = System.getProperty("os.name").toLowerCase();
@@ -31,11 +31,9 @@ class SnowboyHotwordDetector : HotwordDetector {
 	}
 	
     override fun detect(audioData: ShortArray): Boolean {
-		 try {
-       	return triggered || detector.RunDetection(audioData, audioData.size) > 0;
-	 	} finally {
-			 triggered = false;
-		 } 
+		 var wasTriggered = triggered;
+		 if (wasTriggered) triggered = false;
+		 return wasTriggered || detector.RunDetection(audioData, audioData.size) > 0;
     }
 
     override fun close() {
@@ -44,18 +42,16 @@ class SnowboyHotwordDetector : HotwordDetector {
 }
 
 class WebHotwordDetector : HotwordDetector {
-    public var triggered: Boolean = false;
+    @Volatile var triggered: Boolean = false;
 	
 	override fun trigger() {
 		triggered = true;
 	}
 
     override fun detect(audioData: ShortArray): Boolean {
-		 try {
-       	return triggered;
-	 	} finally {
-			 triggered = false;
-		 } 
+		 var wasTriggered = triggered;
+		 if (wasTriggered) triggered = false;
+		 return wasTriggered;
     }
 
     override fun close() {
