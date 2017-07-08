@@ -39,22 +39,22 @@ function applyModels(data) {
         var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td>"
 			+ "<td><button name='trigger'>Trigger</button> <button name='delete'>Delete</button></td></tr>");
 
-        modelHtml.find("button[name='delete']").click(function(el) {
+        modelHtml.find("button[name='delete']").click(model.name, function(event) {
 				 $.ajax({
 					  url: "modelDelete",
-					  data: { name: model.name },
+					  data: { name: event.data },
 					  success: applyModels,
 					  error: function(data) {
-							alert("Couldn't delete model " + model.name);
+							alert("Couldn't delete model " + name);
 					  }
 				 });
 			});
-			modelHtml.find("button[name='trigger']").click(function(el) {
+			modelHtml.find("button[name='trigger']").click(model.name, function(event) {
 				 $.ajax({
 					  url: "modelTrigger",
-					  data: { name: model.name },
+					  data: { name: event.data },
 					  error: function(data) {
-							alert("Couldn't trigger model " + model.name);
+							alert("Couldn't trigger model " + name);
 					  }
 				 });
 			})
