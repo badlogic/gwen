@@ -4,17 +4,16 @@
 package com.google.assistant.embedded.v1alpha1;
 
 public interface AudioOutOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:google.assistant.embedded.v1alpha1.AudioOut)
-    com.google.protobuf.MessageOrBuilder {
+// @@protoc_insertion_point(interface_extends:google.assistant.embedded.v1alpha1.AudioOut)
+	com.google.protobuf.MessageOrBuilder {
 
-  /**
-   * <pre>
-   * *Output-only* The audio data containing the assistant's response to the
-   * query. Sequential chunks of audio data are received in sequential
-   * `ConverseResponse` messages.
-   * </pre>
-   *
-   * <code>bytes audio_data = 1;</code>
-   */
-  com.google.protobuf.ByteString getAudioData();
+	/**
+	 * <pre>
+	 * *Output-only* The audio data containing the assistant's response to the
+	 * query. Sequential chunks of audio data are received in sequential
+	 * `ConverseResponse` messages.
+	 * </pre>
+	 *
+	 * <code>bytes audio_data = 1;</code> */
+	com.google.protobuf.ByteString getAudioData ();
 }

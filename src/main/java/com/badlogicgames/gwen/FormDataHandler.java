@@ -1,3 +1,4 @@
+
 package com.badlogicgames.gwen;
 
 import com.esotericsoftware.minlog.Log;
@@ -17,28 +18,28 @@ import java.util.logging.Logger;
 
 public abstract class FormDataHandler implements HttpHandler {
 	@Override
-	public void handle(HttpExchange httpExchange) throws IOException {
+	public void handle (HttpExchange httpExchange) throws IOException {
 		Headers headers = httpExchange.getRequestHeaders();
 		String contentType = headers.getFirst("Content-Type");
-		if(contentType.startsWith("multipart/form-data")){
-			//found form data
-			String boundary = contentType.substring(contentType.indexOf("boundary=")+9);
+		if (contentType.startsWith("multipart/form-data")) {
+			// found form data
+			String boundary = contentType.substring(contentType.indexOf("boundary=") + 9);
 			// as of rfc7578 - prepend "\r\n--"
 			byte[] boundaryBytes = ("\r\n--" + boundary).getBytes(Charset.forName("UTF-8"));
 			byte[] payload = getInputAsBinary(httpExchange.getRequestBody());
 			ArrayList<MultiPart> list = new ArrayList<>();
 
 			List<Integer> offsets = searchBytes(payload, boundaryBytes, 0, payload.length - 1);
-			for(int idx=0;idx<offsets.size();idx++){
+			for (int idx = 0; idx < offsets.size(); idx++) {
 				int startPart = offsets.get(idx);
 				int endPart = payload.length;
-				if(idx<offsets.size()-1){
-					endPart = offsets.get(idx+1);
+				if (idx < offsets.size() - 1) {
+					endPart = offsets.get(idx + 1);
 				}
-				byte[] part = Arrays.copyOfRange(payload,startPart,endPart);
-				//look for header
-				int headerEnd = indexOf(part,"\r\n\r\n".getBytes(Charset.forName("UTF-8")),0,part.length-1);
-				if(headerEnd>0) {
+				byte[] part = Arrays.copyOfRange(payload, startPart, endPart);
+				// look for header
+				int headerEnd = indexOf(part, "\r\n\r\n".getBytes(Charset.forName("UTF-8")), 0, part.length - 1);
+				if (headerEnd > 0) {
 					MultiPart p = new MultiPart();
 					byte[] head = Arrays.copyOfRange(part, 0, headerEnd);
 					String header = new String(head);
@@ -46,7 +47,7 @@ public abstract class FormDataHandler implements HttpHandler {
 					int nameIndex = header.indexOf("\r\nContent-Disposition: form-data; name=");
 					if (nameIndex >= 0) {
 						int startMarker = nameIndex + 39;
-						//check for extra filename field
+						// check for extra filename field
 						int fileNameStart = header.indexOf("; filename=");
 						if (fileNameStart >= 0) {
 							String filename = header.substring(fileNameStart + 11, header.indexOf("\r\n", fileNameStart));
@@ -55,8 +56,7 @@ public abstract class FormDataHandler implements HttpHandler {
 							p.type = PartType.FILE;
 						} else {
 							int endMarker = header.indexOf("\r\n", startMarker);
-							if (endMarker == -1)
-								endMarker = header.length();
+							if (endMarker == -1) endMarker = header.length();
 							p.name = header.substring(startMarker, endMarker).replace('"', ' ').replace('\'', ' ').trim();
 							p.type = PartType.TEXT;
 						}
@@ -69,41 +69,40 @@ public abstract class FormDataHandler implements HttpHandler {
 					if (typeIndex >= 0) {
 						int startMarker = typeIndex + 15;
 						int endMarker = header.indexOf("\r\n", startMarker);
-						if (endMarker == -1)
-							endMarker = header.length();
+						if (endMarker == -1) endMarker = header.length();
 						p.contentType = header.substring(startMarker, endMarker).trim();
 					}
 
-					//handle content
+					// handle content
 					if (p.type == PartType.TEXT) {
-						//extract text value
+						// extract text value
 						byte[] body = Arrays.copyOfRange(part, headerEnd + 4, part.length);
 						p.value = new String(body);
 					} else {
-						//must be a file upload
+						// must be a file upload
 						p.bytes = Arrays.copyOfRange(part, headerEnd + 4, part.length);
 					}
 					list.add(p);
 				}
 			}
 
-			handle(httpExchange,list);
-		}else{
-			//if no form data is present, still call handle method
-			handle(httpExchange,null);
+			handle(httpExchange, list);
+		} else {
+			// if no form data is present, still call handle method
+			handle(httpExchange, null);
 		}
 	}
 
-	public abstract void handle(HttpExchange httpExchange,List<MultiPart> parts) throws IOException;
+	public abstract void handle (HttpExchange httpExchange, List<MultiPart> parts) throws IOException;
 
-	public static byte[] getInputAsBinary(InputStream requestStream) {
+	public static byte[] getInputAsBinary (InputStream requestStream) {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		try {
 			byte[] buf = new byte[100000];
-			int bytesRead=0;
-			while ((bytesRead = requestStream.read(buf)) != -1){
-				//while (requestStream.available() > 0) {
-				//    int i = requestStream.read(buf);
+			int bytesRead = 0;
+			while ((bytesRead = requestStream.read(buf)) != -1) {
+				// while (requestStream.available() > 0) {
+				// int i = requestStream.read(buf);
 				bos.write(buf, 0, bytesRead);
 			}
 			requestStream.close();
@@ -114,19 +113,16 @@ public abstract class FormDataHandler implements HttpHandler {
 		return bos.toByteArray();
 	}
 
-	/**
-	 * Search bytes in byte array returns indexes within this byte-array of all
-	 * occurrences of the specified(search bytes) byte array in the specified
-	 * range
-	 * borrowed from https://github.com/riversun/finbin/blob/master/src/main/java/org/riversun/finbin/BinarySearcher.java
+	/** Search bytes in byte array returns indexes within this byte-array of all occurrences of the specified(search bytes) byte
+	 * array in the specified range borrowed from
+	 * https://github.com/riversun/finbin/blob/master/src/main/java/org/riversun/finbin/BinarySearcher.java
 	 *
 	 * @param srcBytes
 	 * @param searchBytes
 	 * @param searchStartIndex
 	 * @param searchEndIndex
-	 * @return result index list
-	 */
-	public List<Integer> searchBytes(byte[] srcBytes, byte[] searchBytes, int searchStartIndex, int searchEndIndex) {
+	 * @return result index list */
+	public List<Integer> searchBytes (byte[] srcBytes, byte[] searchBytes, int searchStartIndex, int searchEndIndex) {
 		final int destSize = searchBytes.length;
 		final List<Integer> positionIndexList = new ArrayList<Integer>();
 		int cursor = searchStartIndex;
@@ -143,20 +139,16 @@ public abstract class FormDataHandler implements HttpHandler {
 		return positionIndexList;
 	}
 
-	/**
-	 * Returns the index within this byte-array of the first occurrence of the
-	 * specified(search bytes) byte array.<br>
-	 * Starting the search at the specified index, and end at the specified
-	 * index.
-	 * borrowed from https://github.com/riversun/finbin/blob/master/src/main/java/org/riversun/finbin/BinarySearcher.java
+	/** Returns the index within this byte-array of the first occurrence of the specified(search bytes) byte array.<br>
+	 * Starting the search at the specified index, and end at the specified index. borrowed from
+	 * https://github.com/riversun/finbin/blob/master/src/main/java/org/riversun/finbin/BinarySearcher.java
 	 *
 	 * @param srcBytes
 	 * @param searchBytes
 	 * @param startIndex
 	 * @param endIndex
-	 * @return
-	 */
-	public int indexOf(byte[] srcBytes, byte[] searchBytes, int startIndex, int endIndex) {
+	 * @return */
+	public int indexOf (byte[] srcBytes, byte[] searchBytes, int startIndex, int endIndex) {
 		if (searchBytes.length == 0 || (endIndex - startIndex + 1) < searchBytes.length) {
 			return -1;
 		}
@@ -195,7 +187,7 @@ public abstract class FormDataHandler implements HttpHandler {
 		public byte[] bytes;
 	}
 
-	public enum PartType{
-		TEXT,FILE
+	public enum PartType {
+		TEXT, FILE
 	}
 }

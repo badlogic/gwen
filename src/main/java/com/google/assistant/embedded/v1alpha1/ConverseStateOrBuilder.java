@@ -4,19 +4,18 @@
 package com.google.assistant.embedded.v1alpha1;
 
 public interface ConverseStateOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:google.assistant.embedded.v1alpha1.ConverseState)
-    com.google.protobuf.MessageOrBuilder {
+// @@protoc_insertion_point(interface_extends:google.assistant.embedded.v1alpha1.ConverseState)
+	com.google.protobuf.MessageOrBuilder {
 
-  /**
-   * <pre>
-   * *Required* The `conversation_state` value returned in the prior
-   * `ConverseResponse`. Omit (do not set the field) if there was no prior
-   * `ConverseResponse`. If there was a prior `ConverseResponse`, do not omit
-   * this field; doing so will end that conversation (and this new request will
-   * start a new conversation).
-   * </pre>
-   *
-   * <code>bytes conversation_state = 1;</code>
-   */
-  com.google.protobuf.ByteString getConversationState();
+	/**
+	 * <pre>
+	 * *Required* The `conversation_state` value returned in the prior
+	 * `ConverseResponse`. Omit (do not set the field) if there was no prior
+	 * `ConverseResponse`. If there was a prior `ConverseResponse`, do not omit
+	 * this field; doing so will end that conversation (and this new request will
+	 * start a new conversation).
+	 * </pre>
+	 *
+	 * <code>bytes conversation_state = 1;</code> */
+	com.google.protobuf.ByteString getConversationState ();
 }

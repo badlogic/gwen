@@ -214,7 +214,8 @@ public class Log {
 			print(builder.toString());
 		}
 
-		/** Prints the message to System.out. Called by the default implementation of {@link #log(int, String, String, Throwable)}. */
+		/** Prints the message to System.out. Called by the default implementation of
+		 * {@link #log(int, String, String, Throwable)}. */
 		protected void print (String message) {
 			System.out.println(message);
 		}
