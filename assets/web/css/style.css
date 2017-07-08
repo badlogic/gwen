@@ -192,64 +192,8 @@ TH {
    background-color: #F3F3F3;
 }
 
-.items {
-   display: inline-block;
-   min-width: 200px;
-   height: 200px;
-   padding: 0 5px 5px 5px;
-   cursor: default;
-}
-.items TABLE {
-   width: 100%;
-}
-.items TD {
-   white-space: nowrap;
-   padding-top: 6px;
-   border-bottom: 1px dotted #a8a8a8;
-   cursor: text;
-}
-.items TR TD:first-child {
-   vertical-align: bottom;
-   padding-right: 2px;
-   border-bottom-width: 0;
-   cursor: pointer;
-}
-.items DIV:first-child TD {
-   padding-top: 0;
-}
-.items DIV:hover {
-   background-color: #eeeeee;
-}
-.items TD:nth-child(2) {
-   width: 100%;
-   padding-right: 4px;
-   text-align: right;
-}
-.items INPUT, .items BUTTON {
-   width: 65px;
-   border-width: 0;
-   text-align: right;
-   background-color: inherit;
-}
-
-.results {
-   display: inline-block;
-   min-width: 200px;
-   cursor: default;
-   overflow-x: hidden;
-   overflow-y: auto;
-}
-.results DIV {
-   padding: 4px;
-   white-space: nowrap;
-}
-.results DIV:hover {
-   background-color: #eeeeee;
-}
-
 @media print {
    .noprint, .noprint * {
       display: none !important;
    }
 }
-
