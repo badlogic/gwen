@@ -8,9 +8,10 @@
 <body>
     <h4>Status</h4>
     <div id="status"></div>
+	 <button onclick="restart()">Restart</button>
 
     <h4>Log</h4>
-    <div id="log"></div>
+    <div id="log" style="white-space:pre-wrap"></div>
 </div>
 
 </body>
@@ -39,8 +40,11 @@ function refreshStatus() {
         }
     });
 }
-
 setInterval(refreshStatus, 100);
+
+function restart () {
+    $.ajax({ url: "restart" });
+}
 
 </script>
 </html>

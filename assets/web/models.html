@@ -36,21 +36,28 @@ function applyModels(data) {
 
     for (var i = 0; i < data.length; i++) {
         var model = data[i];
-        var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td><td><button>Delete</button></td></tr>");
+        var modelHtml = $("<tr><td>" + model.name + "</td><td>" + model.type + "</td>"
+			+ "<td><button name='trigger'>Trigger</button> <button name='delete'>Delete</button></td></tr>");
 
-        (function() {
-            var name = model.name;
-            modelHtml.find("button").click(function(el) {
-                $.ajax({
-                    url: "modelDelete",
-                    data: { name: name },
-                    success: applyModels,
-                    error: function(data) {
-                        alert("Couldn't delete model " + name);
-                    }
-                });
-            })
-        })();
+        modelHtml.find("button[name='delete']").click(function(el) {
+				 $.ajax({
+					  url: "modelDelete",
+					  data: { name: model.name },
+					  success: applyModels,
+					  error: function(data) {
+							alert("Couldn't delete model " + model.name);
+					  }
+				 });
+			});
+			modelHtml.find("button[name='trigger']").click(function(el) {
+				 $.ajax({
+					  url: "modelTrigger",
+					  data: { name: model.name },
+					  error: function(data) {
+							alert("Couldn't trigger model " + model.name);
+					  }
+				 });
+			})
         $("#modelList tbody").append(modelHtml);
     }
 }
