@@ -65,73 +65,84 @@ class GwenEngine {
     var thread: Thread? = null;
     var pubSubServer: GwenPubSubServer? = null;
 
-    @Synchronized fun start(config: GwenConfig, oauth: OAuth) {
+    fun start(config: GwenConfig, oauth: OAuth) {
         stop();
-        try {
-            val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
-            val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
-            models = loadModels();
-            val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
-            val thread = Thread(fun() {
-                try {
-                    Log.info("Gwen started");
-                    running = true;
-                    while (running) {
-                        audioRecorder.read();
-                        synchronized(this) {
-                            for (model in models) {
-                                if (model.detector.detect(audioRecorder.getShortData())) {
-                                    pubSubServer?.hotwordDetected(model.name, model.type.id);
-                                    when (model.type) {
-                                        GwenModelType.Question -> {
-                                            Log.info("QA hotword detected, starting assistant conversation");
-                                            // FIXME should we continue conversation?
-                                            assistant.converse();
-                                            Log.info("Conversation ended");
-                                            Log.info("Waiting for hotword");
-                                        }
-                                        GwenModelType.Command -> {
-                                            Log.info("Command hotword detected, starting speech-to-text");
-                                            val command = assistant.speechToText();
-                                            Log.info("Speech-to-text result: '$command'");
-                                            Log.info("Waiting for hotword");
-                                            if (!command.isEmpty()) pubSubServer?.command(model.name, command);
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                } catch(t: Throwable) {
-                    Log.error("An unexpected error occurred.", t);
-                    running = false;
-                } finally {
-                    for (model in models) model.detector.close();
-                    audioRecorder.close();
-                    audioPlayer.close();
-                    Log.info("Gwen stopped");
-                }
-            });
-            thread.isDaemon = true;
-            thread.name = "Gwen engine thread";
-            this.thread = thread;
-            pubSubServer = GwenPubSubServer(config.pubSubPort);
-            thread.start();
-        } catch (t: Throwable) {
-            Log.error("Couldn't reload Gwen", t);
+        synchronized (this) {
+	        try {
+	            val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
+	            val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
+	            models = loadModels();
+	            val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
+	            val thread = Thread(fun() {
+	                try {
+	                    Log.info("Gwen started");
+	                    running = true;
+	                    while (running) {
+	                        audioRecorder.read();
+	                        synchronized(this) {
+	                            for (model in models) {
+	                                if (model.detector.detect(audioRecorder.getShortData())) {
+	                                    pubSubServer?.hotwordDetected(model.name, model.type.id);
+	                                    when (model.type) {
+	                                        GwenModelType.Question -> {
+	                                            Log.info("QA hotword detected, starting assistant conversation");
+	                                            // FIXME should we continue conversation?
+	                                            assistant.converse();
+	                                            Log.info("Conversation ended");
+	                                            Log.info("Waiting for hotword");
+	                                        }
+	                                        GwenModelType.Command -> {
+	                                            Log.info("Command hotword detected, starting speech-to-text");
+	                                            val command = assistant.speechToText();
+	                                            Log.info("Speech-to-text result: '$command'");
+	                                            Log.info("Waiting for hotword");
+	                                            if (!command.isEmpty()) pubSubServer?.command(model.name, command);
+	                                        }
+	                                    }
+	                                    break;
+	                                }
+	                            }
+	                        }
+	                    }
+	                } catch(t: Throwable) {
+	                    Log.error("An unexpected error occurred.", t);
+	                    running = false;
+	                } finally {
+	                    for (model in models) model.detector.close();
+	                    audioRecorder.close();
+	                    audioPlayer.close();
+	                    Log.info("Gwen stopped");
+	                }
+	            });
+	            thread.isDaemon = true;
+	            thread.name = "Gwen engine thread";
+	            this.thread = thread;
+	            pubSubServer = GwenPubSubServer(config.pubSubPort);
+	            thread.start();
+	        } catch (t: Throwable) {
+	            Log.error("Couldn't reload Gwen", t);
+	        }
         }
     }
 
-    private fun  loadModels(): Array<GwenModel> {
+    private fun loadModels(): Array<GwenModel> {
         val modelConfig = File(appPath, "models.json");
         val models: Array<GwenModel>;
         if (!modelConfig.exists()) {
             Log.info("Loading default models");
-            models = arrayOf(
-                    GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
-                    GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
-            );
+            if (System.getProperty("os.name").contains("Windows")) {
+            	models = arrayOf(
+            		GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
+            		GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector())
+            		);
+				} else {
+					models = arrayOf(
+            		GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
+            		GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
+						GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
+						GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
+						);
+				}
             FileWriter(modelConfig).use {
                 Gson().toJson(models, it);
             }
@@ -140,7 +151,10 @@ class GwenEngine {
             models = Gson().fromJson<Array<GwenModel>>(JsonReader(FileReader(File(appPath, "models.json"))), Array<GwenModel>::class.java);
             for (model in models) {
                 Log.info("Loading model ${model.name} (${model.type})")
-                model.detector = SnowboyHotwordDetector(File(appPath, model.file));
+					if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
+						model.detector = SnowboyHotwordDetector(File(appPath, model.file));
+					else
+						model.detector = WebHotwordDetector();
             }
             return models;
         }
@@ -167,7 +181,7 @@ class GwenEngine {
         models = newModels.toTypedArray();
     }
 
-    @Synchronized fun  deleteModel(modelName: String) {
+    @Synchronized fun deleteModel(modelName: String) {
         Log.info("Deleting model $modelName");
 
         val newModels = models.toMutableList();
@@ -182,6 +196,18 @@ class GwenEngine {
             Gson().toJson(newModels, it);
         }
         models = newModels.toTypedArray();
+    }
+    
+    @Synchronized fun triggerModel(modelName: String) {
+   	 Log.info("Triggering model $modelName");
+   	 
+   	 val newModels = models.toMutableList();
+   	 newModels.removeIf() {
+   		 if(it.name.equals(modelName)) {
+   			 it.detector.trigger()
+   		 }
+   		 it.name.equals(modelName);
+   	 }
     }
 
     fun stop() {

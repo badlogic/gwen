@@ -50,7 +50,9 @@ class WebInterface : HttpHandler {
             "/models" -> handleModels(request);
             "/modelSave" -> handleModelSave(request);
             "/modelDelete" -> handleModelDelete(request);
+            "/modelTrigger" -> handleModelTrigger(request);
             "/status" -> handleStatus(request);
+            "/restart" -> handleRestart();
             "/config" -> handleGetConfig(request);
             "/configSave" -> handleSetConfig(request);
             else -> handleFile(request);
@@ -214,17 +216,39 @@ class WebInterface : HttpHandler {
             error(request, "Couldn't delete model", 400);
         }
     }
-
+    
+    private fun handleModelTrigger(request: HttpExchange) {
+   	 val params = parseParams(request);
+   	 val modelName = params["name"];
+   	 
+   	 if (modelName != null) {
+   		 try {
+   			 gwen.triggerModel(modelName);
+   			 handleModels(request);
+   		 } catch(t: Throwable) {
+   			 Log.error("Couldn't trigger model $modelName", t);
+   			 error(request, "Couldn't trigger model", 400);
+   		 }
+   	 } else {
+   		 error(request, "Couldn't trigger model", 400);
+   	 }
+    }
+    
     private fun handleAuthorizationUrl(request: HttpExchange) {
         respond(request, """{ "authorizationUrl": "${oauth?.getAuthorizationURL()}" }""".toByteArray(), MIMETYPE_JSON);
     }
 
-    private fun  handleStatus(request: HttpExchange) {
+    private fun handleStatus(request: HttpExchange) {
         val params = parseParams(request);
         val timeStamp = System.currentTimeMillis();
         val requestTimeStamp = params["timeStamp"];
         val logs = Gson().toJson(logger.getSince(if (requestTimeStamp != null) requestTimeStamp.toLong() else 0));
         respond(request, """{ "status": ${gwen.running}, "log": ${logs}, "timeStamp": $timeStamp }""".toByteArray(), MIMETYPE_JSON);
+    }
+    
+    private fun handleRestart() {
+		 Log.info("Restarting");
+   	 gwen.start(config!!, oauth!!);
     }
 
     private fun  handleGetConfig(request: HttpExchange) {

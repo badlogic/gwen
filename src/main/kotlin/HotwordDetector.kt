@@ -6,11 +6,14 @@ import java.io.Closeable
 import java.io.File
 
 interface HotwordDetector : Closeable {
-    fun detect(audioData: ShortArray): Boolean;
+    fun trigger();
+    
+	fun detect(audioData: ShortArray): Boolean;
 }
 
 class SnowboyHotwordDetector : HotwordDetector {
-    val detector: SnowboyDetect;
+	val detector: SnowboyDetect;
+	var triggered: Boolean = false;
 
     constructor(model: File) {
         val osName = System.getProperty("os.name").toLowerCase();
@@ -23,11 +26,38 @@ class SnowboyHotwordDetector : HotwordDetector {
         this.detector = SnowboyDetect(appPath.absolutePath + "/assets/snowboy/common.res", model.absolutePath);
     }
 
+	override fun trigger() {
+		triggered = true;
+	}
+	
     override fun detect(audioData: ShortArray): Boolean {
-        return detector.RunDetection(audioData, audioData.size) > 0;
+		 try {
+       	return triggered || detector.RunDetection(audioData, audioData.size) > 0;
+	 	} finally {
+			 triggered = false;
+		 } 
     }
 
     override fun close() {
         detector.delete();
+    }
+}
+
+class WebHotwordDetector : HotwordDetector {
+    public var triggered: Boolean = false;
+	
+	override fun trigger() {
+		triggered = true;
+	}
+
+    override fun detect(audioData: ShortArray): Boolean {
+		 try {
+       	return triggered;
+	 	} finally {
+			 triggered = false;
+		 } 
+    }
+
+    override fun close() {
     }
 }
