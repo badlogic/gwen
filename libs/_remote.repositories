@@ -1,6 +1,0 @@
-#NOTE: This is an Aether internal implementation file, its format can be changed without prior notice.
-#Sun Jul 02 23:16:20 UTC 2017
-netty-tcnative-boringssl-static-1.1.33.Fork26-sources.jar>=
-netty-tcnative-boringssl-static-1.1.33.Fork26-linux-arm_32.jar>=
-netty-tcnative-boringssl-static-1.1.33.Fork26.pom>=
-netty-tcnative-boringssl-static-1.1.33.Fork26.jar>=
