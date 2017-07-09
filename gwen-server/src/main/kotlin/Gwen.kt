@@ -6,11 +6,16 @@ import com.esotericsoftware.minlog.Log.*
 import com.esotericsoftware.minlog.Log
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
+import org.java_websocket.WebSocket
+import org.java_websocket.handshake.ClientHandshake
+import org.java_websocket.server.WebSocketServer
 import java.io.*
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import utils.MultiplexOutputStream
+import java.lang.Exception
+import java.net.InetSocketAddress
 
 val appPath: File by lazy {
     val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
@@ -47,7 +52,8 @@ data class GwenConfig(val clientId: String,
                       val clientSecret: String,
                       val playAudioLocally: Boolean,
                       val recordStereo: Boolean,
-                      val pubSubPort: Int);
+                      val pubSubPort: Int = 8778,
+                      val websocketPubSubPort: Int = 8779);
 
 data class GwenModel(val name: String, val file: String, val type: GwenModelType, @kotlin.jvm.Transient var detector: HotwordDetector);
 
@@ -72,10 +78,11 @@ class GwenEngine {
 	                    running = true;
 	                    while (running) {
 	                        audioRecorder.read();
+                            pubSubServer?.audioInput(audioRecorder.getByteData());
 	                        synchronized(this) {
 	                            for (model in models) {
 	                                if (model.detector.detect(audioRecorder.getShortData())) {
-	                                    pubSubServer?.hotwordDetected(model.name, model.type.id);
+	                                    pubSubServer?.hotwordDetected(model.name, model.type);
 	                                    when (model.type) {
 	                                        GwenModelType.Question -> {
 	                                            info("QA hotword detected, starting assistant conversation");
@@ -119,7 +126,10 @@ class GwenEngine {
 	            thread.isDaemon = true;
 	            thread.name = "Gwen engine thread";
 	            this.thread = thread;
-	            pubSubServer = GwenPubSubServer(config.pubSubPort);
+	            pubSubServer = GwenComposablePubSubServer(
+                        GwenTCPPubSubServer(config.pubSubPort),
+                        GwenWebSocketPubSubServer(config.websocketPubSubPort)
+                );
 	            thread.start();
 	        } catch (t: Throwable) {
 	            error("Couldn't reload Gwen", t);
@@ -224,7 +234,133 @@ class GwenEngine {
     }
 }
 
-class GwenPubSubServer: Closeable {
+interface GwenPubSubServer: Closeable {
+    fun hotwordDetected(name: String, type: GwenModelType);
+    fun command(name: String, text: String);
+    fun question(name: String, question: String);
+    fun questionAnswerAudio(name: String, audio: ByteArray);
+    fun questionEnd(name: String);
+    fun audioInput(audio: ByteArray);
+    fun broadcast(data: ByteArray);
+}
+
+abstract class GwenBasePubSubServer: GwenPubSubServer {
+    override fun hotwordDetected(name: String, type: GwenModelType) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.HOTWORD.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        out.writeInt(type.id);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    override fun command(name: String, text: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.COMMAND.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        val textBytes = text.toByteArray();
+        out.writeInt(textBytes.size);
+        out.write(textBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    override fun question(name: String, question: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        val textBytes = question.toByteArray();
+        out.writeInt(textBytes.size);
+        out.write(textBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    override fun questionAnswerAudio(name: String, audio: ByteArray) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION_ANSWER_AUDIO.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        out.writeInt(audio.size);
+        out.write(audio);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    override fun questionEnd(name: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION_END.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    override fun audioInput(audio: ByteArray) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.AUDIO_INPUT.id);
+        out.writeInt(audio.size);
+        out.write(audio);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+}
+
+class GwenComposablePubSubServer: GwenPubSubServer {
+    private val servers: Array<out GwenPubSubServer>;
+
+    constructor(vararg servers: GwenPubSubServer) {
+        this.servers = servers;
+    }
+
+    override fun hotwordDetected(name: String, type: GwenModelType) {
+        for (server in servers) server.hotwordDetected(name, type);
+    }
+
+    override fun command(name: String, text: String) {
+        for (server in servers) server.command(name, text);
+    }
+
+    override fun question(name: String, question: String) {
+        for (server in servers) server.question(name, question);
+    }
+
+    override fun questionAnswerAudio(name: String, audio: ByteArray) {
+        for (server in servers) server.questionAnswerAudio(name, audio);
+    }
+
+    override fun questionEnd(name: String) {
+        for (server in servers) server.questionEnd(name);
+    }
+
+    override fun audioInput(audio: ByteArray) {
+        for (server in servers) server.audioInput(audio);
+    }
+
+    override fun close() {
+        for (server in servers) server.close();
+    }
+
+    override fun broadcast(data: ByteArray) {
+        for (server in servers) server.broadcast(data);
+    }
+}
+
+class GwenTCPPubSubServer: GwenBasePubSubServer {
     val serverSocket: ServerSocket;
     val thread: Thread;
     val clients = mutableListOf<Socket>();
@@ -248,77 +384,19 @@ class GwenPubSubServer: Closeable {
         info("Started pub/sub server on port $port");
     }
 
-    fun hotwordDetected(name: String, type: Int) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.HOTWORD.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.writeInt(type);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    fun command(name: String, text: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.COMMAND.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        val textBytes = text.toByteArray();
-        out.writeInt(textBytes.size);
-        out.write(textBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    fun question(name: String, question: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        val textBytes = question.toByteArray();
-        out.writeInt(textBytes.size);
-        out.write(textBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    fun questionAnswerAudio(name: String, audio: ByteArray) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION_ANSWER_AUDIO.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.writeInt(audio.size);
-        out.write(audio);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    fun questionEnd(name: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION_END.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    @Synchronized private fun broadcast(data: ByteArray) {
-        for (client in clients) {
-            try {
-                client.outputStream.write(data);
-            } catch(t: Throwable) {
-                info("Client ${client.inetAddress.hostAddress} disconnected");
+    override fun broadcast(data: ByteArray) {
+        synchronized(clients) {
+            val removed = mutableListOf<Socket>();
+            for (client in clients) {
+                try {
+                    client.outputStream.write(data);
+                } catch(t: Throwable) {
+                    info("Client ${client.inetAddress.hostAddress} disconnected");
+                    try { client.close() } catch (e: IOException) { /* YOLO */ };
+                    removed.add(client);
+                }
             }
+            clients.removeAll(removed);
         }
     }
 
@@ -333,6 +411,52 @@ class GwenPubSubServer: Closeable {
                 thread.join();
             }
         }
+    }
+}
+
+class GwenWebSocketPubSubServer: GwenBasePubSubServer {
+    private val serverSocket: WebSocketServer;
+    private val clients = mutableListOf<WebSocket>();
+
+    constructor(port: Int) {
+        serverSocket = object: WebSocketServer(InetSocketAddress(port)) {
+            override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
+                synchronized(clients) {
+                    clients.add(conn);
+                }
+            }
+
+            override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+                synchronized(clients) {
+                    clients.remove(conn);
+                }
+            }
+
+            override fun onMessage(conn: WebSocket, message: String) {
+                // No-op
+            }
+
+            override fun onStart() {
+                Log.info("Websocket pub/sub server started on port $port");
+            }
+
+            override fun onError(conn: WebSocket, ex: Exception) {
+                Log.info("Error, removing websocket client ${conn.resourceDescriptor}");
+            }
+        };
+        serverSocket.start();
+    }
+
+    override fun broadcast(data: ByteArray) {
+        synchronized(clients) {
+            for (client in clients) {
+                client.send(data);
+            }
+        }
+    }
+
+    override fun close() {
+        serverSocket.stop();
     }
 }
 
@@ -437,6 +561,10 @@ fun main(args: Array<String>) {
 
                     override fun questionEnd(modelName: String) {
                         Log.info("Pub/sub client received question end, model name: $modelName")
+                    }
+
+                    override fun audioInput(audio: ByteArray) {
+                        // Log.info("Pub/sub client received audio input, audio length: ${audio.size}");
                     }
                 };
             } catch (t: Throwable) {

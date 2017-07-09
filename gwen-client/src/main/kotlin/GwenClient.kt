@@ -14,7 +14,8 @@ enum class GwenPubSubMessageType(val id: Int) {
     COMMAND(1),
     QUESTION(2),
     QUESTION_ANSWER_AUDIO(3),
-    QUESTION_END(4)
+    QUESTION_END(4),
+    AUDIO_INPUT(5)
 }
 
 abstract class GwenPubSubClient: Closeable {
@@ -80,6 +81,13 @@ abstract class GwenPubSubClient: Closeable {
 
                         questionEnd(String(nameBytes));
                     }
+                    GwenPubSubMessageType.AUDIO_INPUT.id -> {
+                        val audioSize = input.readInt();
+                        val audioBytes = ByteArray(audioSize);
+                        input.readFully(audioBytes);
+
+                        audioInput(audioBytes);
+                    }
                     else -> throw Exception("Unknown message type $typeId")
                 }
             }
@@ -109,4 +117,6 @@ abstract class GwenPubSubClient: Closeable {
     abstract fun questionAnswerAudio(modelName: String, audio: ByteArray);
 
     abstract fun questionEnd(modelName: String);
+
+    abstract fun audioInput(audio: ByteArray);
 }
