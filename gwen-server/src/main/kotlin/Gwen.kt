@@ -50,8 +50,9 @@ val logger by lazy { Logger(); }
 
 data class GwenConfig(val clientId: String,
                       val clientSecret: String,
-                      val playAudioLocally: Boolean,
-                      val recordStereo: Boolean,
+                      val playAudioLocally: Boolean = true,
+                      val sendLocalAudioInput: Boolean = false,
+                      val recordStereo: Boolean = false,
                       val pubSubPort: Int = 8778,
                       val websocketPubSubPort: Int = 8779);
 
@@ -78,7 +79,7 @@ class GwenEngine {
 	                    running = true;
 	                    while (running) {
 	                        audioRecorder.read();
-                            // pubSubServer?.audioInput(audioRecorder.getByteData());
+                            if (config.sendLocalAudioInput) pubSubServer?.audioInput(audioRecorder.getByteData());
 	                        synchronized(this) {
 	                            for (model in models) {
 	                                if (model.detector.detect(audioRecorder.getShortData())) {

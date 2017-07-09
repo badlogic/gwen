@@ -21,8 +21,18 @@
 		</tr>
 
 		<tr>
-			<td><label for="pubSubPort">Pub/sub port:</label></td>
+			<td><label for="sendLocalAudioInput">Send audio input:</label></td>
+			<td><input id="sendLocalAudioInput" type="checkbox"></td>
+		</tr>
+
+		<tr>
+			<td><label for="pubSubPort">TCP Pub/sub port:</label></td>
 			<td><input id="pubSubPort" type="text"></td>
+		</tr>
+
+		<tr>
+			<td><label for="websocketPubSubPort">Websocket Pub/sub port:</label></td>
+			<td><input id="websocketPubSubPort" type="text"></td>
 		</tr>
 
 		<tr>
@@ -43,8 +53,10 @@ $("#configSave").click(function() {
 		url: "configSave",
 		data: {
 			playAudioLocally: $("#playAudioLocally").prop("checked"),
+			sendLocalAudioInput: $("#sendLocalAudioInput").prop("checked"),
 			recordStereo: $("#recordStereo").prop("checked"),
-			pubSubPort: $("#pubSubPort").val()
+			pubSubPort: $("#pubSubPort").val(),
+			websocketPubSubPort: $("#websocketPubSubPort").val()
 		},
 		success: function(data) {
 			applyConfig(data);
@@ -70,7 +82,9 @@ function refreshConfig() {
 function applyConfig(config) {
 	$("#playAudioLocally").prop("checked", config.playAudioLocally);
 	$("#recordStereo").prop("checked", config.recordStereo);
+	$("#sendLocalAudioInput").prop("checked", config.recordStereo);
 	$("#pubSubPort").val(config.pubSubPort);
+	$("#websocketPubSubPort").val(config.websocketPubSubPort);
 }
 
 </script>

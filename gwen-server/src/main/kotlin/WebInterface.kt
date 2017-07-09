@@ -119,7 +119,7 @@ class WebInterface : HttpHandler {
 
         Log.info("Saving project config");
         if (id != null && !id.isEmpty() && secret != null && !secret.isEmpty()) {
-            config = GwenConfig(id, secret, true, false, 8778);
+            config = GwenConfig(id, secret);
             try {
                 FileWriter(File(appPath, "gwen.json")).use {
                     Gson().toJson(config, it);
@@ -264,16 +264,18 @@ class WebInterface : HttpHandler {
         val params = parseParams(request);
         val playAudioLocally = params["playAudioLocally"]?.toBoolean();
         val recordStereo = params["recordStereo"]?.toBoolean();
+        val sendLocalAudioInput = params["sendLocalAudioInput"]?.toBoolean();
         val pubSubPort = params["pubSubPort"]?.toInt();
+        val websocketPubSubPort = params["websocketPubSubPort"]?.toInt();
 
-        if (playAudioLocally == null || recordStereo == null || pubSubPort == null) {
+        if (playAudioLocally == null || recordStereo == null || sendLocalAudioInput == null || pubSubPort == null || websocketPubSubPort == null) {
             error(request, "Invalid config", 400);
         } else {
             val config = config;
             if (config == null) {
                 error(request, "Gwen is not configured", 400);
             } else {
-                val newConfig = GwenConfig(config.clientId, config.clientSecret, playAudioLocally, recordStereo, pubSubPort);
+                val newConfig = GwenConfig(config.clientId, config.clientSecret, playAudioLocally, sendLocalAudioInput, recordStereo, pubSubPort, websocketPubSubPort);
                 val oauth = oauth;
                 if (oauth == null) {
                     error(request, "Gwen is not configured", 400);
