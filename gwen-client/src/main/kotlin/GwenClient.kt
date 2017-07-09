@@ -88,16 +88,6 @@ abstract class GwenPubSubClient: Closeable {
         thread.start();
     }
 
-    abstract fun hotword(modelName: String, type: GwenModelType);
-
-    abstract fun command(modelName: String, text: String);
-
-    abstract fun questionStart(modelName: String, text: String);
-
-    abstract fun questionAnswerAudio(modelName: String, audio: ByteArray);
-
-    abstract fun questionEnd(modelName: String);
-
     override fun close() {
         synchronized(this) {
             if (running) {
@@ -108,4 +98,14 @@ abstract class GwenPubSubClient: Closeable {
             }
         }
     }
+
+    abstract fun hotword(modelName: String, type: GwenModelType);
+
+    abstract fun command(modelName: String, text: String);
+
+    abstract fun questionStart(modelName: String, text: String);
+
+    abstract fun questionAnswerAudio(modelName: String, audio: ByteArray);
+
+    abstract fun questionEnd(modelName: String);
 }
