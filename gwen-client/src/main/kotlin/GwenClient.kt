@@ -24,6 +24,7 @@ abstract class GwenPubSubClient: Closeable {
 
     constructor(host: String, port: Int) {
         socket = Socket(host, port);
+        socket.tcpNoDelay = true;
         thread = Thread(fun() {
             val input = DataInputStream(socket.inputStream);
             while(running) {

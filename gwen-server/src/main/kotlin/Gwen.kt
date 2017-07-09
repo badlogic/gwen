@@ -236,6 +236,7 @@ class GwenPubSubServer: Closeable {
             while (running) {
                 val client = serverSocket.accept();
                 synchronized(clients) {
+                    client.tcpNoDelay = true;
                     clients.add(client);
                 }
                 info("New pub/sub client (${client.inetAddress.hostAddress})");
