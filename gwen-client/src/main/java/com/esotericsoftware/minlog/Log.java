@@ -158,7 +158,7 @@ public class Log {
 		if (TRACE) logger.log(LEVEL_TRACE, category, message, null);
 	}
 
-	private Log () {
+	private Log() {
 	}
 
 	/** Performs the actual logging. Default implementation logs to System.out. Extended and use {@link Log#logger} set to handle

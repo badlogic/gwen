@@ -1,5 +1,6 @@
 package com.badlogicgames.gwen;
 
+import com.esotericsoftware.minlog.Log
 import com.google.assistant.embedded.v1alpha1.*
 import com.google.auth.oauth2.AccessToken
 import com.google.auth.oauth2.OAuth2Credentials
@@ -23,6 +24,12 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
     @Volatile private var isCompleted: Boolean = false;
     @Volatile private var stopOnRequestText = false;
     private val TIME_OUT = 60 * 1000;
+    private var callback: GoogleAssistantCallback = object : GoogleAssistantCallback {
+        override fun questionComplete(question: String) {
+        }
+        override fun answerAudio(audio: ByteArray) {
+        }
+    };
 
     constructor(oauth: OAuth, audioRecorder: AudioRecorder, audioPlayer: AudioPlayer) {
         this.oauth = oauth;
@@ -66,10 +73,10 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         return speechToTextResult;
     }
 
-    fun converse(): Boolean {
+    fun converse(callback: GoogleAssistantCallback): Boolean {
         setCredentials(oauth.getCredentials());
+        this.callback = callback;
 
-        println("Starting convo");
         val requester = client.converse(this);
         finished = CountDownLatch(1);
         stopRecording = false;
@@ -117,22 +124,23 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         if (value == null) return;
 
         if (value.eventType != ConverseResponse.EventType.EVENT_TYPE_UNSPECIFIED) {
-            println("Event type : ${value.eventType.name}");
+            Log.trace("Asssitant - Event, type : ${value.eventType.name}");
         }
 
         if (value.eventType == ConverseResponse.EventType.END_OF_UTTERANCE) {
-            println("response: end of utterance");
+            Log.trace("Assistant - End of utterance");
             stopRecording = true;
         }
 
         if (value.error != null && value.error.code != 0) {
-            println("Error in response : ${value.error.message}");
+            Log.trace("Assistant - Error: ${value.error.message}");
         }
 
         if (value.audioOut != null) {
             if (!stopOnRequestText) {
                 val audioData = value.audioOut.audioData.toByteArray();
                 audioPlayer.play(audioData, 0, audioData.size);
+                callback.answerAudio(audioData);
             }
         }
 
@@ -140,22 +148,23 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
             this.currentState = value.result.conversationState
 
             if (value.result.spokenRequestText != null && !value.result.spokenRequestText.isEmpty()) {
-                println("Request Text : ${value.result.spokenRequestText}");
+                Log.trace("Assistant - Question Text : ${value.result.spokenRequestText}");
                 speechToTextResult = value.result.spokenRequestText
                 if (stopOnRequestText) finished.countDown();
+                else callback.questionComplete(speechToTextResult);
             }
 
             if (value.result.spokenResponseText != null && !value.result.spokenResponseText.isEmpty()) {
-                println("Response Text : ${value.result.spokenResponseText}");
+                Log.trace("Assistant - Answer Text : ${value.result.spokenResponseText}");
             }
 
             if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {
-                println("response: dialog follow on");
+                Log.trace("Assistant - Dialog follow on");
                 continueConversation = true;
                 isCompleted = true;
             }
             if (value.result.microphoneMode == ConverseResult.MicrophoneMode.CLOSE_MICROPHONE) {
-                println("response: close microphone");
+                Log.trace("Assistant - Close microphone");
                 continueConversation = false;
                 isCompleted = true;
                 if (stopOnRequestText) finished.countDown();
@@ -169,5 +178,10 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
 
     override fun onCompleted() {
         finished.countDown();
+    }
+
+    interface GoogleAssistantCallback {
+        fun questionComplete(question: String);
+        fun answerAudio(audio: ByteArray);
     }
 }

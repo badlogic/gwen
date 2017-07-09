@@ -43,18 +43,11 @@ class Logger : Log.Logger {
 
 val logger by lazy { Logger(); }
 
-data class GwenStatus(val needsClientId: Boolean,
-                      val needsAuthorization: Boolean,
-                      val authorizationUrl: String?,
-                      val isRunning: Boolean);
-
 data class GwenConfig(val clientId: String,
                       val clientSecret: String,
                       val playAudioLocally: Boolean,
                       val recordStereo: Boolean,
                       val pubSubPort: Int);
-
-enum class GwenModelType (val id: Int) { Question(0), Command(1) }
 
 data class GwenModel(val name: String, val file: String, val type: GwenModelType, @kotlin.jvm.Transient var detector: HotwordDetector);
 
@@ -87,8 +80,17 @@ class GwenEngine {
 	                                        GwenModelType.Question -> {
 	                                            info("QA hotword detected, starting assistant conversation");
 	                                            // FIXME should we continue conversation?
-	                                            assistant.converse();
-	                                            info("Conversation ended");
+	                                            assistant.converse(object: GoogleAssistant.GoogleAssistantCallback {
+                                                    override fun questionComplete(question: String) {
+                                                        pubSubServer?.question(model.name, question);
+                                                    }
+
+                                                    override fun answerAudio(audio: ByteArray) {
+                                                        pubSubServer?.questionAnswerAudio(model.name, audio);
+                                                    }
+                                                });
+                                                info("Conversation ended");
+                                                pubSubServer?.questionEnd(model.name);
 	                                            info("Waiting for hotword");
 	                                        }
 	                                        GwenModelType.Command -> {
@@ -137,8 +139,8 @@ class GwenEngine {
             		);
 				} else {
 					models = arrayOf(
-            		GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
-            		GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
+            		    GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
+            		    GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
 						GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
 						GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
 						);
@@ -223,11 +225,6 @@ class GwenEngine {
 }
 
 class GwenPubSubServer: Closeable {
-    enum class MessageType(val id: Int) {
-        HOTWORD(0),
-        COMMAND(1)
-    }
-
     val serverSocket: ServerSocket;
     val thread: Thread;
     val clients = mutableListOf<Socket>();
@@ -253,7 +250,7 @@ class GwenPubSubServer: Closeable {
     fun hotwordDetected(name: String, type: Int) {
         val bytes = ByteArrayOutputStream();
         val out = DataOutputStream(bytes);
-        out.writeByte(MessageType.HOTWORD.id);
+        out.writeByte(GwenPubSubMessageType.HOTWORD.id);
         val nameBytes = name.toByteArray();
         out.writeInt(nameBytes.size);
         out.write(nameBytes);
@@ -265,13 +262,51 @@ class GwenPubSubServer: Closeable {
     fun command(name: String, text: String) {
         val bytes = ByteArrayOutputStream();
         val out = DataOutputStream(bytes);
-        out.writeByte(MessageType.COMMAND.id);
+        out.writeByte(GwenPubSubMessageType.COMMAND.id);
         val nameBytes = name.toByteArray();
         out.writeInt(nameBytes.size);
         out.write(nameBytes);
         val textBytes = text.toByteArray();
         out.writeInt(textBytes.size);
         out.write(textBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    fun question(name: String, question: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        val textBytes = question.toByteArray();
+        out.writeInt(textBytes.size);
+        out.write(textBytes);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    fun questionAnswerAudio(name: String, audio: ByteArray) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION_ANSWER_AUDIO.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
+        out.writeInt(audio.size);
+        out.write(audio);
+        out.flush();
+        broadcast(bytes.toByteArray());
+    }
+
+    fun questionEnd(name: String) {
+        val bytes = ByteArrayOutputStream();
+        val out = DataOutputStream(bytes);
+        out.writeByte(GwenPubSubMessageType.QUESTION_END.id);
+        val nameBytes = name.toByteArray();
+        out.writeInt(nameBytes.size);
+        out.write(nameBytes);
         out.flush();
         broadcast(bytes.toByteArray());
     }
@@ -293,66 +328,6 @@ class GwenPubSubServer: Closeable {
                 running = false;
                 serverSocket.close();
                 for (client in clients) client.close();
-                thread.interrupt();
-                thread.join();
-            }
-        }
-    }
-}
-
-abstract class GwenPubSubClient: Closeable {
-    val socket: Socket;
-    val thread: Thread;
-    @Volatile var running = true;
-
-    constructor(host: String, port: Int) {
-        socket = Socket(host, port);
-        thread = Thread(fun() {
-            val input = DataInputStream(socket.inputStream);
-            info("Started pub/sub client");
-            while(running) {
-                val typeId = input.readByte();
-                when(typeId.toInt()) {
-                    GwenPubSubServer.MessageType.HOTWORD.id -> {
-                        val nameSize = input.readInt();
-                        val bytes = ByteArray(nameSize);
-                        input.readFully(bytes);
-                        hotword(String(bytes), when(input.readInt()) {
-                            0 -> GwenModelType.Question
-                            1 -> GwenModelType.Command
-                            else -> throw Exception("Unknown model type");
-                        });
-                    }
-                    GwenPubSubServer.MessageType.COMMAND.id -> {
-                        val nameSize = input.readInt();
-                        val nameBytes = ByteArray(nameSize);
-                        input.readFully(nameBytes);
-
-                        val textSize = input.readInt();
-                        val textBytes = ByteArray(textSize);
-                        input.readFully(textBytes);
-
-                        command(String(nameBytes), String(textBytes));
-                    }
-                    else -> throw Exception("Unknown message type $typeId")
-                }
-            }
-        });
-        thread.isDaemon = true;
-        thread.name = "Pub/sub client thread";
-        thread.start();
-    }
-
-    abstract fun hotword(name: String, type: GwenModelType);
-
-    abstract fun command(name: String, text: String);
-
-    override fun close() {
-        synchronized(this) {
-            if (running) {
-                info("Stopping pub/sub client");
-                running = false;
-                socket.close();
                 thread.interrupt();
                 thread.join();
             }
@@ -446,10 +421,21 @@ fun main(args: Array<String>) {
                 Thread.sleep(1000);
                 object : GwenPubSubClient("localhost", 8778) {
                     override fun hotword(name: String, type: GwenModelType) {
-                        println("Pub/sub client received hotword $name $type");
+                        Log.info("Pub/sub client received hotword, model name: $name, model type: $type");
                     }
                     override fun command(name: String, text: String) {
-                        println("Pub/sub client received command $name $text");
+                        Log.info("Pub/sub client received command, model name: $name, command text: $text");
+                    }
+                    override fun questionStart(modelName: String, text: String) {
+                        Log.info("Pub/sub client received question, model name: $modelName, question text: $text")
+                    }
+
+                    override fun questionAnswerAudio(modelName: String, audio: ByteArray) {
+                        Log.info("Pub/sub client received answer audio, model name: $modelName, audio length: ${audio.size}");
+                    }
+
+                    override fun questionEnd(modelName: String) {
+                        Log.info("Pub/sub client received question end, model name: $modelName")
                     }
                 };
             } catch (t: Throwable) {
