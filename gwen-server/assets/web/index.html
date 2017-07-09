@@ -17,10 +17,12 @@
 </body>
 <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script type="text/javascript" src="js/gwen.js"></script>
+<script type="text/javascript" src="js/gwen-client.js"></script>
 <script type="text/javascript" >
 
 var timeStamp = 0;
 var lastRequestedTimeStamp = -1;
+var pubSubClient = null;
 
 function refreshStatus() {
 	if (timeStamp == lastRequestedTimeStamp) return;
@@ -48,6 +50,30 @@ setInterval(refreshStatus, 100);
 function restart () {
 	$.ajax({ url: "restart" });
 }
+
+$.ajax({ url: "config", success: function(data) {
+	pubSubClient = new GwenClient();
+	pubSubClient.connect(location.hostname, data.websocketPubSubPort, {
+		onHotword: function(modelName, modelType) {
+			console.log("Hotword, " + modelName + ", " + modelType);
+		},
+		onCommand: function(modelName, command) {
+			console.log("Command, " + modelName + ", " + command);
+		},
+		onQuestionStart: function(modelName, question) {
+			console.log("Question, " + modelName + ", " + question);
+		},
+		onQuestionAnswerAudio: function(modelName, audio) {
+			console.log("Question Answer Audio, " + modelName + ", audio size: " + audio.byteLength);
+		},
+		onQuestionEnd: function(modelName) {
+			console.log("Question end, " + modelName);
+		},
+		onAudioInput: function(audio) {
+		}
+	});
+	// window.addEventListener('unload', pubSubClient.close);
+}});
 
 </script>
 </html>

@@ -78,7 +78,7 @@ class GwenEngine {
 	                    running = true;
 	                    while (running) {
 	                        audioRecorder.read();
-                            pubSubServer?.audioInput(audioRecorder.getByteData());
+                            // pubSubServer?.audioInput(audioRecorder.getByteData());
 	                        synchronized(this) {
 	                            for (model in models) {
 	                                if (model.detector.detect(audioRecorder.getShortData())) {
@@ -375,13 +375,13 @@ class GwenTCPPubSubServer: GwenBasePubSubServer {
                     client.tcpNoDelay = true;
                     clients.add(client);
                 }
-                info("New pub/sub client (${client.inetAddress.hostAddress})");
+                info("New TCP pub/sub client (${client.inetAddress.hostAddress})");
             }
         });
         thread.isDaemon = true;
         thread.name = "Pub/sub server thread";
         thread.start();
-        info("Started pub/sub server on port $port");
+        info("TCP pub/sub server started on port $port");
     }
 
     override fun broadcast(data: ByteArray) {
@@ -391,7 +391,7 @@ class GwenTCPPubSubServer: GwenBasePubSubServer {
                 try {
                     client.outputStream.write(data);
                 } catch(t: Throwable) {
-                    info("Client ${client.inetAddress.hostAddress} disconnected");
+                    info("TCP client ${client.inetAddress.hostAddress} disconnected");
                     try { client.close() } catch (e: IOException) { /* YOLO */ };
                     removed.add(client);
                 }
@@ -403,7 +403,7 @@ class GwenTCPPubSubServer: GwenBasePubSubServer {
     override fun close() {
         synchronized(this) {
             if (running) {
-                info("Stopping pub/sub server");
+                info("Stopping TCP pub/sub server");
                 running = false;
                 serverSocket.close();
                 for (client in clients) client.close();
@@ -423,12 +423,14 @@ class GwenWebSocketPubSubServer: GwenBasePubSubServer {
             override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
                 synchronized(clients) {
                     clients.add(conn);
+                    info("New Websocket pub/sub client (${conn.remoteSocketAddress.address.hostAddress})");
                 }
             }
 
             override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
                 synchronized(clients) {
                     clients.remove(conn);
+                    Log.info("Websocket client ${conn.remoteSocketAddress.address.hostAddress} disconnected");
                 }
             }
 
@@ -441,7 +443,10 @@ class GwenWebSocketPubSubServer: GwenBasePubSubServer {
             }
 
             override fun onError(conn: WebSocket, ex: Exception) {
-                Log.info("Error, removing websocket client ${conn.resourceDescriptor}");
+                Log.info("Error, removing Websocket client ${conn.remoteSocketAddress.address.hostAddress}");
+                synchronized(clients) {
+                    clients.remove(conn);
+                }
             }
         };
         serverSocket.start();
@@ -456,6 +461,7 @@ class GwenWebSocketPubSubServer: GwenBasePubSubServer {
     }
 
     override fun close() {
+        info("Stopping Websocket pub/sub server");
         serverSocket.stop();
     }
 }

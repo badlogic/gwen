@@ -139,8 +139,10 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
         if (value.audioOut != null) {
             if (!stopOnRequestText) {
                 val audioData = value.audioOut.audioData.toByteArray();
-                audioPlayer.play(audioData, 0, audioData.size);
-                callback.answerAudio(audioData);
+                if (audioData.size > 0) {
+                    audioPlayer.play(audioData, 0, audioData.size);
+                    callback.answerAudio(audioData);
+                }
             }
         }
 
