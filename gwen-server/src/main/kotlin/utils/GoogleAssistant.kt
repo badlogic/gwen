@@ -49,7 +49,6 @@ class GoogleAssistant: StreamObserver<ConverseResponse> {
     fun speechToText(): String {
         setCredentials(oauth.getCredentials());
 
-        println("Starting text to speech");
         val requester = client.converse(this);
         finished = CountDownLatch(1);
         stopRecording = false;

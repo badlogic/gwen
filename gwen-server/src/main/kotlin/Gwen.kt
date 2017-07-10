@@ -29,7 +29,11 @@ class Logger : Log.Logger {
 
 	@Synchronized override fun print(message: String) {
         super.print(message)
-		 if (logs.size > 20000) logs.removeAt(0);
+        add(message);
+    }
+
+	@Synchronized fun add(message: String) {
+        if (logs.size > 20000) logs.removeAt(0);
         logs.add(Pair(System.currentTimeMillis(), message));
     }
 
