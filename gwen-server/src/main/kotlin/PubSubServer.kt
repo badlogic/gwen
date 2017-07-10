@@ -144,14 +144,11 @@ class GwenComposablePubSubServer: GwenPubSubServer {
     }
 }
 
-class GwenTCPPubSubServer: GwenBasePubSubServer {
+class GwenTCPPubSubServer: GwenBasePubSubServer() {
     var serverSocket: ServerSocket? = null;
     var thread: Thread? = null;
     val clients = mutableListOf<Socket>();
     @Volatile var running = false;
-
-    constructor() {
-    }
 
     override fun open(config: GwenConfig) {
         synchronized(this) {
@@ -210,15 +207,13 @@ class GwenTCPPubSubServer: GwenBasePubSubServer {
     }
 }
 
-class GwenWebSocketPubSubServer: GwenBasePubSubServer {
+class GwenWebSocketPubSubServer: GwenBasePubSubServer() {
     private var serverSocket: WebSocketServer? = null;
     private val clients = mutableListOf<WebSocket>();
 
-    constructor() {
-    }
-
     override fun open(config: GwenConfig) {
         synchronized(this) {
+            close();
             serverSocket = object: WebSocketServer(InetSocketAddress(config.websocketPubSubPort)) {
                 override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
                     synchronized(clients) {
