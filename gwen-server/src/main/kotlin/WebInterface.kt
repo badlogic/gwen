@@ -156,7 +156,7 @@ class WebInterface : HttpHandler {
             if (oa.isAuthorized()) {
                 oauth = oa;
                 gwen.stop();
-                gwen.start(config!!, oa);
+                gwen.start(config!!, oa, gwen.pubSubServer);
                 redirect(request, "/");
             } else {
                 error(request, "Invalid code, authorization failed", 400);
@@ -248,7 +248,7 @@ class WebInterface : HttpHandler {
     
     private fun handleRestart() {
 		 Log.info("Restarting");
-   	 gwen.start(config!!, oauth!!);
+   	 gwen.start(config!!, oauth!!, gwen.pubSubServer);
     }
 
     private fun  handleGetConfig(request: HttpExchange) {
@@ -281,7 +281,7 @@ class WebInterface : HttpHandler {
                     error(request, "Gwen is not configured", 400);
                 } else {
                     gwen.stop();
-                    gwen.start(newConfig, oauth);
+                    gwen.start(newConfig, oauth, gwen.pubSubServer);
                     com.badlogicgames.gwen.config = newConfig;
                     FileWriter(File(appPath, "gwen.json")).use {
                         Gson().toJson(newConfig, it);
