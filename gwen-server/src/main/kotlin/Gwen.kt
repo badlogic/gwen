@@ -60,6 +60,7 @@ class GwenEngine {
 	)) {
 		stop();
 		synchronized(this) {
+			this.pubSubServer = pubSubServer;
 			try {
 				val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
 				val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
