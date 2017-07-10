@@ -82,7 +82,7 @@ function refreshConfig() {
 function applyConfig(config) {
 	$("#playAudioLocally").prop("checked", config.playAudioLocally);
 	$("#recordStereo").prop("checked", config.recordStereo);
-	$("#sendLocalAudioInput").prop("checked", config.recordStereo);
+	$("#sendLocalAudioInput").prop("checked", config.sendLocalAudioInput);
 	$("#pubSubPort").val(config.pubSubPort);
 	$("#websocketPubSubPort").val(config.websocketPubSubPort);
 }
