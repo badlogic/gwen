@@ -2,20 +2,13 @@
 
 package com.badlogicgames.gwen
 
-import com.esotericsoftware.minlog.Log.*
 import com.esotericsoftware.minlog.Log
+import com.esotericsoftware.minlog.Log.*
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
-import org.java_websocket.WebSocket
-import org.java_websocket.handshake.ClientHandshake
-import org.java_websocket.server.WebSocketServer
+import utils.MultiplexOutputStream
 import java.io.*
 import java.net.NetworkInterface
-import java.net.ServerSocket
-import java.net.Socket
-import utils.MultiplexOutputStream
-import java.lang.Exception
-import java.net.InetSocketAddress
 
 val appPath: File by lazy {
     File(".").canonicalFile;
@@ -24,15 +17,15 @@ val appPath: File by lazy {
 class Logger : Log.Logger {
     val logs = mutableListOf<Pair<Long, String>>();
 
-	constructor () {
-	}
+    constructor () {
+    }
 
-	@Synchronized override fun print(message: String) {
+    @Synchronized override fun print(message: String) {
         super.print(message)
         add(message);
     }
 
-	@Synchronized fun add(message: String) {
+    @Synchronized fun add(message: String) {
         if (logs.size > 20000) logs.removeAt(0);
         logs.add(Pair(System.currentTimeMillis(), message));
     }
@@ -62,31 +55,31 @@ class GwenEngine {
     var pubSubServer: GwenPubSubServer? = GwenComposablePubSubServer(
             GwenTCPPubSubServer(),
             GwenWebSocketPubSubServer()
-        );
+    );
 
     fun start(config: GwenConfig, oauth: OAuth) {
         stop();
-        synchronized (this) {
-	        try {
-	            val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
-	            val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
-	            models = loadModels();
-	            val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
-	            val thread = Thread(fun() {
-	                try {
-	                    info("Gwen started");
-	                    while (running) {
-	                        audioRecorder.read();
+        synchronized(this) {
+            try {
+                val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
+                val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
+                models = loadModels();
+                val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
+                val thread = Thread(fun() {
+                    try {
+                        info("Gwen started");
+                        while (running) {
+                            audioRecorder.read();
                             if (config.sendLocalAudioInput) pubSubServer?.audioInput(audioRecorder.getByteData());
-	                        synchronized(this) {
-	                            for (model in models) {
-	                                if (model.detector.detect(audioRecorder.getShortData())) {
-	                                    pubSubServer?.hotwordDetected(model.name, model.type);
-	                                    when (model.type) {
-	                                        GwenModelType.Question -> {
-	                                            info("QA hotword detected, starting assistant conversation");
-	                                            // FIXME should we continue conversation?
-	                                            assistant.converse(object: GoogleAssistant.GoogleAssistantCallback {
+                            synchronized(this) {
+                                for (model in models) {
+                                    if (model.detector.detect(audioRecorder.getShortData())) {
+                                        pubSubServer?.hotwordDetected(model.name, model.type);
+                                        when (model.type) {
+                                            GwenModelType.Question -> {
+                                                info("QA hotword detected, starting assistant conversation");
+                                                // FIXME should we continue conversation?
+                                                assistant.converse(object : GoogleAssistant.GoogleAssistantCallback {
                                                     override fun questionComplete(question: String) {
                                                         pubSubServer?.question(model.name, question);
                                                     }
@@ -97,40 +90,40 @@ class GwenEngine {
                                                 });
                                                 info("Conversation ended");
                                                 pubSubServer?.questionEnd(model.name);
-	                                            info("Waiting for hotword");
-	                                        }
-	                                        GwenModelType.Command -> {
-	                                            info("Command hotword detected, starting speech-to-text");
-	                                            val command = assistant.speechToText();
-	                                            info("Speech-to-text result: '$command'");
-	                                            info("Waiting for hotword");
-	                                            if (!command.isEmpty()) pubSubServer?.command(model.name, command);
-	                                        }
-	                                    }
-	                                    break;
-	                                }
-	                            }
-	                        }
-	                    }
-	                } catch(t: Throwable) {
-	                    error("An unexpected error occurred.", t);
-	                    running = false;
-	                } finally {
-	                    for (model in models) model.detector.close();
-	                    audioRecorder.close();
-	                    audioPlayer.close();
-	                    info("Gwen stopped");
-	                }
-	            });
-	            thread.isDaemon = true;
-	            thread.name = "Gwen engine thread";
-	            this.thread = thread;
-				  running = true;
-	            pubSubServer?.open(config);
-	            thread.start();
-	        } catch (t: Throwable) {
-	            error("Couldn't reload Gwen", t);
-	        }
+                                                info("Waiting for hotword");
+                                            }
+                                            GwenModelType.Command -> {
+                                                info("Command hotword detected, starting speech-to-text");
+                                                val command = assistant.speechToText();
+                                                info("Speech-to-text result: '$command'");
+                                                info("Waiting for hotword");
+                                                if (!command.isEmpty()) pubSubServer?.command(model.name, command);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch(t: Throwable) {
+                        error("An unexpected error occurred.", t);
+                        running = false;
+                    } finally {
+                        for (model in models) model.detector.close();
+                        audioRecorder.close();
+                        audioPlayer.close();
+                        info("Gwen stopped");
+                    }
+                });
+                thread.isDaemon = true;
+                thread.name = "Gwen engine thread";
+                this.thread = thread;
+                running = true;
+                pubSubServer?.open(config);
+                thread.start();
+            } catch (t: Throwable) {
+                error("Couldn't reload Gwen", t);
+            }
         }
     }
 
@@ -140,18 +133,18 @@ class GwenEngine {
         if (!modelConfig.exists()) {
             info("Loading default models");
             if (System.getProperty("os.name").contains("Windows")) {
-            	models = arrayOf(
-            		GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
-            		GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector())
-            		);
-				} else {
-					models = arrayOf(
-            		    GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
-            		    GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
-						GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
-						GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
-						);
-				}
+                models = arrayOf(
+                        GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
+                        GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector())
+                );
+            } else {
+                models = arrayOf(
+                        GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
+                        GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
+                        GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
+                        GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
+                );
+            }
             FileWriter(modelConfig).use {
                 Gson().toJson(models, it);
             }
@@ -160,10 +153,10 @@ class GwenEngine {
             models = Gson().fromJson<Array<GwenModel>>(JsonReader(FileReader(File(appPath, "models.json"))), Array<GwenModel>::class.java);
             for (model in models) {
                 info("Loading model ${model.name} (${model.type})")
-					if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
-						model.detector = SnowboyHotwordDetector(File(appPath, model.file));
-					else
-						model.detector = WebHotwordDetector();
+                if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
+                    model.detector = SnowboyHotwordDetector(File(appPath, model.file));
+                else
+                    model.detector = WebHotwordDetector();
             }
             return models;
         }
@@ -195,7 +188,7 @@ class GwenEngine {
 
         val newModels = models.toMutableList();
         newModels.removeIf() {
-            if(it.name.equals(modelName)) {
+            if (it.name.equals(modelName)) {
                 it.detector.close();
             }
             it.name.equals(modelName);
@@ -206,17 +199,17 @@ class GwenEngine {
         }
         models = newModels.toTypedArray();
     }
-    
+
     @Synchronized fun triggerModel(modelName: String) {
-   	 info("Triggering model $modelName");
-   	 
-   	 val newModels = models.toMutableList();
-   	 newModels.removeIf() {
-   		 if(it.name.equals(modelName)) {
-   			 it.detector.trigger()
-   		 }
-   		 it.name.equals(modelName);
-   	 }
+        info("Triggering model $modelName");
+
+        val newModels = models.toMutableList();
+        newModels.removeIf() {
+            if (it.name.equals(modelName)) {
+                it.detector.trigger()
+            }
+            it.name.equals(modelName);
+        }
     }
 
     fun stop() {
@@ -227,263 +220,6 @@ class GwenEngine {
             }
             pubSubServer?.close();
             thread?.join();
-        }
-    }
-}
-
-interface GwenPubSubServer: Closeable {
-    fun open(config: GwenConfig);
-    fun hotwordDetected(name: String, type: GwenModelType);
-    fun command(name: String, text: String);
-    fun question(name: String, question: String);
-    fun questionAnswerAudio(name: String, audio: ByteArray);
-    fun questionEnd(name: String);
-    fun audioInput(audio: ByteArray);
-    fun broadcast(data: ByteArray);
-}
-
-abstract class GwenBasePubSubServer: GwenPubSubServer {
-    override fun hotwordDetected(name: String, type: GwenModelType) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.HOTWORD.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.writeInt(type.id);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    override fun command(name: String, text: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.COMMAND.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        val textBytes = text.toByteArray();
-        out.writeInt(textBytes.size);
-        out.write(textBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    override fun question(name: String, question: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        val textBytes = question.toByteArray();
-        out.writeInt(textBytes.size);
-        out.write(textBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    override fun questionAnswerAudio(name: String, audio: ByteArray) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION_ANSWER_AUDIO.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.writeInt(audio.size);
-        out.write(audio);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    override fun questionEnd(name: String) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.QUESTION_END.id);
-        val nameBytes = name.toByteArray();
-        out.writeInt(nameBytes.size);
-        out.write(nameBytes);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-
-    override fun audioInput(audio: ByteArray) {
-        val bytes = ByteArrayOutputStream();
-        val out = DataOutputStream(bytes);
-        out.writeByte(GwenPubSubMessageType.AUDIO_INPUT.id);
-        out.writeInt(audio.size);
-        out.write(audio);
-        out.flush();
-        broadcast(bytes.toByteArray());
-    }
-}
-
-class GwenComposablePubSubServer: GwenPubSubServer {
-    private val servers: Array<out GwenPubSubServer>;
-
-    constructor(vararg servers: GwenPubSubServer) {
-        this.servers = servers;
-    }
-
-    override fun hotwordDetected(name: String, type: GwenModelType) {
-        for (server in servers) server.hotwordDetected(name, type);
-    }
-
-    override fun command(name: String, text: String) {
-        for (server in servers) server.command(name, text);
-    }
-
-    override fun question(name: String, question: String) {
-        for (server in servers) server.question(name, question);
-    }
-
-    override fun questionAnswerAudio(name: String, audio: ByteArray) {
-        for (server in servers) server.questionAnswerAudio(name, audio);
-    }
-
-    override fun questionEnd(name: String) {
-        for (server in servers) server.questionEnd(name);
-    }
-
-    override fun audioInput(audio: ByteArray) {
-        for (server in servers) server.audioInput(audio);
-    }
-
-    override fun open(config: GwenConfig) {
-        for (server in servers) server.open(config);
-    }
-
-    override fun close() {
-        for (server in servers) server.close();
-    }
-
-    override fun broadcast(data: ByteArray) {
-        for (server in servers) server.broadcast(data);
-    }
-}
-
-class GwenTCPPubSubServer: GwenBasePubSubServer {
-    var serverSocket: ServerSocket? = null;
-    var thread: Thread? = null;
-    val clients = mutableListOf<Socket>();
-    @Volatile var running = false;
-
-    constructor() {
-	 }
-
-	 override fun open(config: GwenConfig) {
-        synchronized(this) {
-	        close();
-			  running = true;
-	        serverSocket = ServerSocket(config.pubSubPort);
-	        val thread = Thread(fun () {
-	            val serverSocket = this.serverSocket;
-	            if (serverSocket == null) return;
-	            while (running) {
-	                val client = serverSocket.accept();
-	                synchronized(clients) {
-	                    client.tcpNoDelay = true;
-	                    clients.add(client);
-	                }
-	                info("New TCP pub/sub client (${client.inetAddress.hostAddress})");
-	            }
-	        });
-	        this.thread = thread;
-	        thread.isDaemon = true;
-	        thread.name = "Pub/sub server thread";
-	        thread.start();
-	        info("TCP pub/sub server started on port $config.pubSubPort");
-		 }
-    }
-
-    override fun broadcast(data: ByteArray) {
-        synchronized(clients) {
-            val removed = mutableListOf<Socket>();
-            for (client in clients) {
-                try {
-                    client.outputStream.write(data);
-                } catch(t: Throwable) {
-                    info("TCP client ${client.inetAddress.hostAddress} disconnected");
-                    try { client.close() } catch (e: IOException) { /* YOLO */ };
-                    removed.add(client);
-                }
-            }
-            clients.removeAll(removed);
-        }
-    }
-
-    override fun close() {
-        synchronized(this) {
-            if (running) {
-                info("Stopping TCP pub/sub server");
-                running = false;
-                serverSocket?.close();
-                serverSocket = null;
-                for (client in clients) client.close();
-                thread?.interrupt();
-                thread?.join();
-                thread = null;
-            }
-        }
-    }
-}
-
-class GwenWebSocketPubSubServer: GwenBasePubSubServer {
-    private var serverSocket: WebSocketServer? = null;
-    private val clients = mutableListOf<WebSocket>();
-
-    constructor() {
-	 }
-
-	 override fun open(config: GwenConfig) {
-		 synchronized(this) {
-	        serverSocket = object: WebSocketServer(InetSocketAddress(config.websocketPubSubPort)) {
-	            override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-	                synchronized(clients) {
-	                    clients.add(conn);
-	                    info("New Websocket pub/sub client (${conn.remoteSocketAddress.address.hostAddress})");
-	                }
-	            }
-	
-	            override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
-	                synchronized(clients) {
-	                    clients.remove(conn);
-	                    Log.info("Websocket client ${conn.remoteSocketAddress.address.hostAddress} disconnected");
-	                }
-	            }
-	
-	            override fun onMessage(conn: WebSocket, message: String) {
-	                // No-op
-	            }
-	
-	            override fun onStart() {
-	                Log.info("Websocket pub/sub server started on port $port");
-	            }
-	
-	            override fun onError(conn: WebSocket, ex: Exception) {
-	                Log.info("Error, removing Websocket client ${conn.remoteSocketAddress.address.hostAddress}");
-	                synchronized(clients) {
-	                    clients.remove(conn);
-	                }
-	            }
-	        };
-	        serverSocket?.start();
-		 }
-    }
-
-    override fun broadcast(data: ByteArray) {
-        synchronized(clients) {
-            for (client in clients) {
-                client.send(data);
-            }
-        }
-    }
-
-    override fun close() {
-        info("Stopping Websocket pub/sub server");
-        synchronized(this) {
-			 serverSocket?.stop();
-			 serverSocket = null;
         }
     }
 }
@@ -542,25 +278,25 @@ private fun printWebInterfaceUrl() {
 
 fun main(args: Array<String>) {
     try {
-		 setLogger(logger);
+        setLogger(logger);
 
-		 for (arg in args) {
-			 if (arg.equals("debug", ignoreCase = true))
-				 DEBUG();
-			 else if (arg.equals("trace", ignoreCase = true))
-				 TRACE();
-		 }
+        for (arg in args) {
+            if (arg.equals("debug", ignoreCase = true))
+                DEBUG();
+            else if (arg.equals("trace", ignoreCase = true))
+                TRACE();
+        }
 
-		 var logFile = File(appPath, "/log.txt");
-		 try {
-			 var output = FileOutputStream(logFile);
-			 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
-			 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
-		 } catch (ex:Throwable) {
-			 warn("Unable to write log file.", ex);
-		 }
+        var logFile = File(appPath, "/log.txt");
+        try {
+            var output = FileOutputStream(logFile);
+            System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
+            System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
+        } catch (ex: Throwable) {
+            warn("Unable to write log file.", ex);
+        }
 
-		 config = loadConfig();
+        config = loadConfig();
         config?.let { oauth = loadOAuth(it); };
 
         startWebInterface();
