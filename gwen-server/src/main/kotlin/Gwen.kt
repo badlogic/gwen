@@ -55,7 +55,10 @@ class GwenEngine {
     @Volatile var running = false;
     @Volatile var models: Array<GwenModel> = emptyArray();
     var thread: Thread? = null;
-    var pubSubServer: GwenPubSubServer? = null;
+    var pubSubServer: GwenPubSubServer? = GwenComposablePubSubServer(
+            GwenTCPPubSubServer(),
+            GwenWebSocketPubSubServer()
+        );
 
     fun start(config: GwenConfig, oauth: OAuth) {
         stop();
@@ -68,7 +71,6 @@ class GwenEngine {
 	            val thread = Thread(fun() {
 	                try {
 	                    info("Gwen started");
-	                    running = true;
 	                    while (running) {
 	                        audioRecorder.read();
                             if (config.sendLocalAudioInput) pubSubServer?.audioInput(audioRecorder.getByteData());
@@ -119,10 +121,8 @@ class GwenEngine {
 	            thread.isDaemon = true;
 	            thread.name = "Gwen engine thread";
 	            this.thread = thread;
-	            pubSubServer = GwenComposablePubSubServer(
-                        GwenTCPPubSubServer(config.pubSubPort),
-                        GwenWebSocketPubSubServer(config.websocketPubSubPort)
-                );
+				  running = true;
+	            pubSubServer?.open(config);
 	            thread.start();
 	        } catch (t: Throwable) {
 	            error("Couldn't reload Gwen", t);
@@ -221,13 +221,14 @@ class GwenEngine {
             synchronized(this) {
                 running = false;
             }
-            thread?.join();
             pubSubServer?.close();
+            thread?.join();
         }
     }
 }
 
 interface GwenPubSubServer: Closeable {
+    fun open(config: GwenConfig);
     fun hotwordDetected(name: String, type: GwenModelType);
     fun command(name: String, text: String);
     fun question(name: String, question: String);
@@ -344,6 +345,10 @@ class GwenComposablePubSubServer: GwenPubSubServer {
         for (server in servers) server.audioInput(audio);
     }
 
+    override fun open(config: GwenConfig) {
+        for (server in servers) server.open(config);
+    }
+
     override fun close() {
         for (server in servers) server.close();
     }
@@ -354,27 +359,37 @@ class GwenComposablePubSubServer: GwenPubSubServer {
 }
 
 class GwenTCPPubSubServer: GwenBasePubSubServer {
-    val serverSocket: ServerSocket;
-    val thread: Thread;
+    var serverSocket: ServerSocket? = null;
+    var thread: Thread? = null;
     val clients = mutableListOf<Socket>();
-    @Volatile var running = true;
+    @Volatile var running = false;
 
-    constructor(port: Int) {
-        serverSocket = ServerSocket(port);
-        thread = Thread(fun () {
-            while (running) {
-                val client = serverSocket.accept();
-                synchronized(clients) {
-                    client.tcpNoDelay = true;
-                    clients.add(client);
-                }
-                info("New TCP pub/sub client (${client.inetAddress.hostAddress})");
-            }
-        });
-        thread.isDaemon = true;
-        thread.name = "Pub/sub server thread";
-        thread.start();
-        info("TCP pub/sub server started on port $port");
+    constructor() {
+	 }
+
+	 override fun open(config: GwenConfig) {
+        synchronized(this) {
+	        close();
+			  running = true;
+	        serverSocket = ServerSocket(config.pubSubPort);
+	        val thread = Thread(fun () {
+	            val serverSocket = this.serverSocket;
+	            if (serverSocket == null) return;
+	            while (running) {
+	                val client = serverSocket.accept();
+	                synchronized(clients) {
+	                    client.tcpNoDelay = true;
+	                    clients.add(client);
+	                }
+	                info("New TCP pub/sub client (${client.inetAddress.hostAddress})");
+	            }
+	        });
+	        this.thread = thread;
+	        thread.isDaemon = true;
+	        thread.name = "Pub/sub server thread";
+	        thread.start();
+	        info("TCP pub/sub server started on port $config.pubSubPort");
+		 }
     }
 
     override fun broadcast(data: ByteArray) {
@@ -398,51 +413,58 @@ class GwenTCPPubSubServer: GwenBasePubSubServer {
             if (running) {
                 info("Stopping TCP pub/sub server");
                 running = false;
-                serverSocket.close();
+                serverSocket?.close();
+                serverSocket = null;
                 for (client in clients) client.close();
-                thread.interrupt();
-                thread.join();
+                thread?.interrupt();
+                thread?.join();
+                thread = null;
             }
         }
     }
 }
 
 class GwenWebSocketPubSubServer: GwenBasePubSubServer {
-    private val serverSocket: WebSocketServer;
+    private var serverSocket: WebSocketServer? = null;
     private val clients = mutableListOf<WebSocket>();
 
-    constructor(port: Int) {
-        serverSocket = object: WebSocketServer(InetSocketAddress(port)) {
-            override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-                synchronized(clients) {
-                    clients.add(conn);
-                    info("New Websocket pub/sub client (${conn.remoteSocketAddress.address.hostAddress})");
-                }
-            }
+    constructor() {
+	 }
 
-            override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
-                synchronized(clients) {
-                    clients.remove(conn);
-                    Log.info("Websocket client ${conn.remoteSocketAddress.address.hostAddress} disconnected");
-                }
-            }
-
-            override fun onMessage(conn: WebSocket, message: String) {
-                // No-op
-            }
-
-            override fun onStart() {
-                Log.info("Websocket pub/sub server started on port $port");
-            }
-
-            override fun onError(conn: WebSocket, ex: Exception) {
-                Log.info("Error, removing Websocket client ${conn.remoteSocketAddress.address.hostAddress}");
-                synchronized(clients) {
-                    clients.remove(conn);
-                }
-            }
-        };
-        serverSocket.start();
+	 override fun open(config: GwenConfig) {
+		 synchronized(this) {
+	        serverSocket = object: WebSocketServer(InetSocketAddress(config.websocketPubSubPort)) {
+	            override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
+	                synchronized(clients) {
+	                    clients.add(conn);
+	                    info("New Websocket pub/sub client (${conn.remoteSocketAddress.address.hostAddress})");
+	                }
+	            }
+	
+	            override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+	                synchronized(clients) {
+	                    clients.remove(conn);
+	                    Log.info("Websocket client ${conn.remoteSocketAddress.address.hostAddress} disconnected");
+	                }
+	            }
+	
+	            override fun onMessage(conn: WebSocket, message: String) {
+	                // No-op
+	            }
+	
+	            override fun onStart() {
+	                Log.info("Websocket pub/sub server started on port $port");
+	            }
+	
+	            override fun onError(conn: WebSocket, ex: Exception) {
+	                Log.info("Error, removing Websocket client ${conn.remoteSocketAddress.address.hostAddress}");
+	                synchronized(clients) {
+	                    clients.remove(conn);
+	                }
+	            }
+	        };
+	        serverSocket?.start();
+		 }
     }
 
     override fun broadcast(data: ByteArray) {
@@ -455,7 +477,10 @@ class GwenWebSocketPubSubServer: GwenBasePubSubServer {
 
     override fun close() {
         info("Stopping Websocket pub/sub server");
-        serverSocket.stop();
+        synchronized(this) {
+			 serverSocket?.stop();
+			 serverSocket = null;
+        }
     }
 }
 
@@ -514,65 +539,34 @@ private fun printWebInterfaceUrl() {
 fun main(args: Array<String>) {
     try {
 		 setLogger(logger);
-		 var log = true;
+
 		 for (arg in args) {
 			 if (arg.equals("debug", ignoreCase = true))
 				 DEBUG();
 			 else if (arg.equals("trace", ignoreCase = true))
 				 TRACE();
-			 else if (arg.equals("log=false", ignoreCase = true)) 
-				 log = false;
 		 }
 
-		 if (log) {
-			 var logFile = File(appPath, "/log.txt");
-			 try {
-				 var output = FileOutputStream(logFile);
-				 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
-				 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
-			 } catch (ex:Throwable) {
-				 warn("Unable to write log file.", ex);
-			 }
-		}
+		 var logFile = File(appPath, "/log.txt");
+		 try {
+			 var output = FileOutputStream(logFile);
+			 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
+			 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
+		 } catch (ex:Throwable) {
+			 warn("Unable to write log file.", ex);
+		 }
 
 		 config = loadConfig();
         config?.let { oauth = loadOAuth(it); };
 
+        startWebInterface();
         if (config == null || oauth == null || !oauth!!.isAuthorized()) {
-            startWebInterface();
             println("Setup through web interface required (http://<local-ip-address>:8777)");
             printWebInterfaceUrl();
         } else {
-            startWebInterface();
             printWebInterfaceUrl();
             try {
                 gwen.start(config!!, oauth!!);
-                Thread.sleep(1000);
-                object : GwenPubSubClient("localhost", 8778) {
-                    override fun hotword(modelName: String, type: GwenModelType) {
-                        Log.info("Pub/sub client received hotword, model name: $modelName, model type: $type");
-                    }
-
-                    override fun command(modelName: String, text: String) {
-                        Log.info("Pub/sub client received command, model name: $modelName, command text: $text");
-                    }
-
-                    override fun questionStart(modelName: String, text: String) {
-                        Log.info("Pub/sub client received question, model name: $modelName, question text: $text")
-                    }
-
-                    override fun questionAnswerAudio(modelName: String, audio: ByteArray) {
-                        Log.info("Pub/sub client received answer audio, model name: $modelName, audio length: ${audio.size}");
-                    }
-
-                    override fun questionEnd(modelName: String) {
-                        Log.info("Pub/sub client received question end, model name: $modelName")
-                    }
-
-                    override fun audioInput(audio: ByteArray) {
-                        // Log.info("Pub/sub client received audio input, audio length: ${audio.size}");
-                    }
-                };
             } catch (t: Throwable) {
                 error("Couldn't start Gwen, setup through webinterface required", t);
             }
