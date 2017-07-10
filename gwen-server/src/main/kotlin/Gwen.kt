@@ -18,15 +18,7 @@ import java.lang.Exception
 import java.net.InetSocketAddress
 
 val appPath: File by lazy {
-    val path = File(HotwordDetector::class.java.protectionDomain.codeSource.location.toURI().path);
-    val pathText = path.absolutePath.replace('\\', '/');
-    when {
-        pathText.endsWith("build/classes/main") -> path.parentFile.parentFile.parentFile
-        pathText.endsWith("build/libs") -> path.parentFile.parentFile
-        pathText.endsWith("bin") -> path.parentFile
-        !path.isDirectory -> path.parentFile
-        else -> path
-    }
+    File(".").canonicalFile;
 }
 
 class Logger : Log.Logger {
