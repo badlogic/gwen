@@ -514,21 +514,26 @@ private fun printWebInterfaceUrl() {
 fun main(args: Array<String>) {
     try {
 		 setLogger(logger);
+		 var log = true;
 		 for (arg in args) {
 			 if (arg.equals("debug", ignoreCase = true))
 				 DEBUG();
-			 else if (arg.equals("trace", ignoreCase = true)) //
+			 else if (arg.equals("trace", ignoreCase = true))
 				 TRACE();
+			 else if (arg.equals("log=false", ignoreCase = true)) 
+				 log = false;
 		 }
 
-		 var logFile = File(appPath, "/log.txt");
-		 try {
-			 var output = FileOutputStream(logFile);
-			 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
-			 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
-		 } catch (ex:Throwable) {
-			 warn("Unable to write log file.", ex);
-		 }
+		 if (log) {
+			 var logFile = File(appPath, "/log.txt");
+			 try {
+				 var output = FileOutputStream(logFile);
+				 System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
+				 System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
+			 } catch (ex:Throwable) {
+				 warn("Unable to write log file.", ex);
+			 }
+		}
 
 		 config = loadConfig();
         config?.let { oauth = loadOAuth(it); };
@@ -544,12 +549,14 @@ fun main(args: Array<String>) {
                 gwen.start(config!!, oauth!!);
                 Thread.sleep(1000);
                 object : GwenPubSubClient("localhost", 8778) {
-                    override fun hotword(name: String, type: GwenModelType) {
-                        Log.info("Pub/sub client received hotword, model name: $name, model type: $type");
+                    override fun hotword(modelName: String, type: GwenModelType) {
+                        Log.info("Pub/sub client received hotword, model name: $modelName, model type: $type");
                     }
-                    override fun command(name: String, text: String) {
-                        Log.info("Pub/sub client received command, model name: $name, command text: $text");
+
+                    override fun command(modelName: String, text: String) {
+                        Log.info("Pub/sub client received command, model name: $modelName, command text: $text");
                     }
+
                     override fun questionStart(modelName: String, text: String) {
                         Log.info("Pub/sub client received question, model name: $modelName, question text: $text")
                     }
