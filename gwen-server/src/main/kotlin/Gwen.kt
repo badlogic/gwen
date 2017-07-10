@@ -52,12 +52,12 @@ class GwenEngine {
 	@Volatile var running = false;
 	@Volatile var models: Array<GwenModel> = emptyArray();
 	var thread: Thread? = null;
-	var pubSubServer: GwenPubSubServer? = GwenComposablePubSubServer(
-			  GwenTCPPubSubServer(),
-			  GwenWebSocketPubSubServer()
-	);
+	var pubSubServer: GwenPubSubServer? = null;
 
-	fun start(config: GwenConfig, oauth: OAuth) {
+	fun start(config: GwenConfig, oauth: OAuth, pubSubServer: GwenPubSubServer? = GwenComposablePubSubServer(
+			  GwenTCPPubSubServer(config.pubSubPort),
+			  GwenWebSocketPubSubServer(config.websocketPubSubPort)
+	)) {
 		stop();
 		synchronized(this) {
 			try {
@@ -119,7 +119,6 @@ class GwenEngine {
 				thread.name = "Gwen engine thread";
 				this.thread = thread;
 				running = true;
-				pubSubServer?.open(config);
 				thread.start();
 			} catch (t: Throwable) {
 				error("Couldn't reload Gwen", t);
