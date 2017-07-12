@@ -8,17 +8,13 @@ import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
 import utils.MultiplexOutputStream
 import java.io.*
-import java.net.NetworkInterface
 
 val appPath: File by lazy {
 	File(".").canonicalFile;
 }
 
-class Logger : Log.Logger {
+class Logger : Log.Logger() {
 	val logs = mutableListOf<Pair<Long, String>>();
-
-	constructor () {
-	}
 
 	@Synchronized override fun print(message: String) {
 		super.print(message)
@@ -35,18 +31,7 @@ class Logger : Log.Logger {
 	}
 }
 
-val logger by lazy { Logger(); }
-
-data class GwenConfig(val clientId: String,
-							 val clientSecret: String,
-							 val playAudioLocally: Boolean = true,
-							 val sendLocalAudioInput: Boolean = false,
-							 val recordStereo: Boolean = false,
-							 val pubSubPort: Int = 8778,
-							 val websocketPubSubPort: Int = 8779);
-
 data class GwenModel(val name: String, val file: String, val type: GwenModelType, @kotlin.jvm.Transient var detector: HotwordDetector);
-
 
 class GwenEngine {
 	@Volatile var running = false;
@@ -62,10 +47,10 @@ class GwenEngine {
 		synchronized(this) {
 			this.pubSubServer = pubSubServer;
 			try {
-				val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
 				val audioRecorder = LocalAudioRecorder(16000, 1600, config.recordStereo);
+				val audioPlayer = if (config.playAudioLocally) LocalAudioPlayer(16000) else NullAudioPlayer();
 				models = loadModels();
-				val assistant = GoogleAssistant(oauth, audioRecorder, audioPlayer);
+				val assistant = GoogleAssistant();
 				val thread = Thread(fun() {
 					try {
 						info("Gwen started");
@@ -73,32 +58,32 @@ class GwenEngine {
 							audioRecorder.read();
 							if (config.sendLocalAudioInput) pubSubServer?.audioInput(audioRecorder.getByteData());
 							synchronized(this) {
-								for (model in models) {
-									if (model.detector.detect(audioRecorder.getShortData())) {
-										pubSubServer?.hotwordDetected(model.name, model.type);
-										when (model.type) {
+								for ((name, _, type, detector) in models) {
+									if (detector.detect(audioRecorder.getShortData())) {
+										pubSubServer?.hotwordDetected(name, type);
+										when (type) {
 											GwenModelType.Question -> {
 												info("QA hotword detected, starting assistant conversation");
 												// FIXME should we continue conversation?
-												assistant.converse(object : GoogleAssistant.GoogleAssistantCallback {
+												assistant.converse(oauth, audioRecorder, audioPlayer, object : GoogleAssistant.GoogleAssistantCallback {
 													override fun questionComplete(question: String) {
-														pubSubServer?.question(model.name, question);
+														pubSubServer?.question(name, question);
 													}
 
 													override fun answerAudio(audio: ByteArray) {
-														pubSubServer?.questionAnswerAudio(model.name, audio);
+														pubSubServer?.questionAnswerAudio(name, audio);
 													}
 												});
 												info("Conversation ended");
-												pubSubServer?.questionEnd(model.name);
+												pubSubServer?.questionEnd(name);
 												info("Waiting for hotword");
 											}
 											GwenModelType.Command -> {
 												info("Command hotword detected, starting speech-to-text");
-												val command = assistant.speechToText();
+												val command = assistant.speechToText(oauth, audioRecorder, audioPlayer);
 												info("Speech-to-text result: '$command'");
 												info("Waiting for hotword");
-												if (!command.isEmpty()) pubSubServer?.command(model.name, command);
+												if (!command.isEmpty()) pubSubServer?.command(name, command);
 											}
 										}
 										break;
@@ -187,11 +172,11 @@ class GwenEngine {
 		info("Deleting model $modelName");
 
 		val newModels = models.toMutableList();
-		newModels.removeIf() {
-			if (it.name.equals(modelName)) {
+		newModels.removeIf {
+			if (it.name == modelName) {
 				it.detector.close();
 			}
-			it.name.equals(modelName);
+			it.name == modelName;
 		}
 		val modelConfig = File(appPath, "models.json");
 		FileWriter(modelConfig).use {
@@ -204,11 +189,11 @@ class GwenEngine {
 		info("Triggering model $modelName");
 
 		val newModels = models.toMutableList();
-		newModels.removeIf() {
-			if (it.name.equals(modelName)) {
+		newModels.removeIf {
+			if (it.name == modelName) {
 				it.detector.trigger()
 			}
-			it.name.equals(modelName);
+			it.name == modelName;
 		}
 	}
 
@@ -224,89 +209,40 @@ class GwenEngine {
 	}
 }
 
-var oauth: OAuth? = null;
-
-var config: GwenConfig? = null;
-
-val gwen = GwenEngine();
-
-fun loadConfig(): GwenConfig? {
-	try {
-		val configFile = File(appPath, "gwen.json");
-		if (!configFile.exists()) {
-			debug("No config file found");
-			return null;
-		} else {
-			debug("Loading config")
-			return Gson().fromJson<GwenConfig>(JsonReader(FileReader(File(appPath, "gwen.json"))), GwenConfig::class.java);
-		}
-	} catch (e: Throwable) {
-		error("Error loading config", e);
-		return null;
-	}
-}
-
-fun loadOAuth(config: GwenConfig): OAuth {
-	val oAuthConfig = OAuthConfig("https://www.googleapis.com/oauth2/v4/",
-			  config.clientId,
-			  config.clientSecret,
-			  File(appPath, "credentials.json"),
-			  "https://www.googleapis.com/auth/assistant-sdk-prototype",
-			  "urn:ietf:wg:oauth:2.0:oob",
-			  "https://accounts.google.com/o/oauth2/v2/auth");
-	val oauth = OAuth(oAuthConfig);
-	if (oauth.isAuthorized()) {
-		try {
-			oauth.getCredentials();
-		} catch (t: Throwable) {
-			error("Couldn't authorize", t);
-		}
-	}
-	return oauth;
-}
-
-private fun printWebInterfaceUrl() {
-	for (itf in NetworkInterface.getNetworkInterfaces()) {
-		if (itf.isLoopback) continue;
-		for (addr in itf.inetAddresses) {
-			// Because we don't like IPV6 and don't know how to get the local IP address...
-			if (addr.hostAddress.startsWith("192") || addr.hostAddress.startsWith("10"))
-				println("http://${addr.hostName}:8777/");
-		}
-	}
-}
+val logger by lazy { Logger() }
 
 fun main(args: Array<String>) {
 	try {
 		setLogger(logger);
 
 		for (arg in args) {
-			if (arg.equals("debug", ignoreCase = true))
-				DEBUG();
-			else if (arg.equals("trace", ignoreCase = true))
-				TRACE();
+			when (arg.toLowerCase()) {
+				"debug" -> DEBUG();
+				"trace" -> TRACE();
+			}
 		}
 
-		var logFile = File(appPath, "/log.txt");
+		val logFile = File(appPath, "/log.txt");
 		try {
-			var output = FileOutputStream(logFile);
+			val output = FileOutputStream(logFile);
 			System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
 			System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
 		} catch (ex: Throwable) {
 			warn("Unable to write log file.", ex);
 		}
 
-		config = loadConfig();
-		config?.let { oauth = loadOAuth(it); };
+		val config = loadConfig();
+		val oauth = loadOAuth(config);
+		val gwen = GwenEngine();
 
-		startWebInterface();
-		if (config == null || oauth == null || !oauth!!.isAuthorized()) {
+		startWebInterface(config, oauth, gwen);
+		if (config.assistantConfig == null || !oauth.isAuthorized()) {
 			println("Setup through web interface required (http://<local-ip-address>:8777)");
 			printWebInterfaceUrl();
 		} else {
 			printWebInterfaceUrl();
 			try {
-				gwen.start(config!!, oauth!!);
+				gwen.start(config, oauth);
 			} catch (t: Throwable) {
 				error("Couldn't start Gwen, setup through webinterface required", t);
 			}

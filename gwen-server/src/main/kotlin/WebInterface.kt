@@ -6,13 +6,24 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpHandler
 import com.sun.net.httpserver.HttpServer
 import java.io.File
-import java.io.FileWriter
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 
-fun startWebInterface(port: Int = 8777) {
+fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, port: Int = 8777) {
 	val server = HttpServer.create(InetSocketAddress(port), 0);
-	server.createContext("/", WebInterface());
+	server.createContext("/", WebInterface(gwenConfig, oauth, gwen));
 	server.start();
+}
+
+fun printWebInterfaceUrl() {
+	for (itf in NetworkInterface.getNetworkInterfaces()) {
+		if (itf.isLoopback) continue;
+		for (addr in itf.inetAddresses) {
+			// Because we don't like IPV6 and don't know how to get the local IP address...
+			if (addr.hostAddress.startsWith("192") || addr.hostAddress.startsWith("10"))
+				println("http://${addr.hostName}:8777/");
+		}
+	}
 }
 
 val MIMETYPE_PLAINTEXT = "text/plain";
@@ -25,16 +36,16 @@ val MIMETYPE_JPEG = "image/jpeg"
 val MIMETYPE_GIF = "image/gif"
 val MIMETYPE_JS = "text/javascript"
 
-class WebInterface : HttpHandler {
+class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenEngine) : HttpHandler {
+
 	override fun handle(request: HttpExchange) {
 		// redirect to setup pages
-		if (request.requestURI.path.endsWith(".html") || request.requestURI.path.equals("/")) {
-			if (config == null && !request.requestURI.path.equals("/setup-project.html")) {
+		if (request.requestURI.path.endsWith(".html") || request.requestURI.path == "/") {
+			if (gwenConfig.assistantConfig == null && request.requestURI.path != "/setup-project.html") {
 				redirect(request, "/setup-project.html")
 				return;
 			} else {
-				val oa = oauth;
-				if (config != null && (oa == null || !oa.isAuthorized()) && !request.requestURI.path.equals("/setup-oauth.html")) {
+				if (gwenConfig.assistantConfig != null && !oauth.isAuthorized() && request.requestURI.path != "/setup-oauth.html") {
 					redirect(request, "/setup-oauth.html")
 					return;
 				};
@@ -103,12 +114,10 @@ class WebInterface : HttpHandler {
 	private fun parseParams(request: HttpExchange): Map<String, String> {
 		val params = mutableMapOf<String, String>();
 		if (request.requestURI.query == null) return params;
-		for (param in request.requestURI.query.split("&")) {
-			if (param.contains("=")) {
-				val tokens = param.split("=");
-				params.put(tokens[0], tokens[1]);
-			}
-		}
+		request.requestURI.query.split("&")
+				  .filter { it.contains("=") }
+				  .map { it.split("=") }
+				  .forEach { params.put(it[0], it[1]) }
 		return params;
 	}
 
@@ -119,20 +128,16 @@ class WebInterface : HttpHandler {
 
 		Log.info("Saving project config");
 		if (id != null && !id.isEmpty() && secret != null && !secret.isEmpty()) {
-			config = GwenConfig(id, secret);
+			gwenConfig.assistantConfig = GoogleAssistantConfig(id, secret);
+			gwenConfig.credentials = null;
 			try {
-				FileWriter(File(appPath, "gwen.json")).use {
-					Gson().toJson(config, it);
-				}
+				gwenConfig.save();
 			} catch(t: Throwable) {
 				Log.error("Couldn't save config", t);
 				error(request, "Couldn't save config", 400);
 				File(appPath, "gwen.json").delete();
-				oauth?.deleteCredentials()
 			}
 			gwen.stop();
-			oauth?.deleteCredentials()
-			oauth = loadOAuth(config!!);
 			redirect(request, "/");
 		} else {
 			error(request, "Invalid client id & secret", 400);
@@ -145,18 +150,16 @@ class WebInterface : HttpHandler {
 
 		Log.info("Got OAuth code, saving account");
 		if (code != null && !code.isEmpty()) {
-			val oa = loadOAuth((config!!));
 			try {
-				oa.requestAccessToken(code);
+				oauth.requestAccessToken(code);
 			} catch(t: Throwable) {
 				Log.error("Couldn't authorize", t);
 				error(request, "Couldn't authorize", 400);
 				return;
 			}
-			if (oa.isAuthorized()) {
-				oauth = oa;
+			if (oauth.isAuthorized()) {
 				gwen.stop();
-				gwen.start(config!!, oa, gwen.pubSubServer);
+				gwen.start(gwenConfig, oauth, gwen.pubSubServer);
 				redirect(request, "/");
 			} else {
 				error(request, "Invalid code, authorization failed", 400);
@@ -235,29 +238,24 @@ class WebInterface : HttpHandler {
 	}
 
 	private fun handleAuthorizationUrl(request: HttpExchange) {
-		respond(request, """{ "authorizationUrl": "${oauth?.getAuthorizationURL()}" }""".toByteArray(), MIMETYPE_JSON);
+		respond(request, """{ "authorizationUrl": "${oauth.getAuthorizationURL()}" }""".toByteArray(), MIMETYPE_JSON);
 	}
 
 	private fun handleStatus(request: HttpExchange) {
 		val params = parseParams(request);
 		val timeStamp = System.currentTimeMillis();
 		val requestTimeStamp = params["timeStamp"];
-		val logs = Gson().toJson(logger.getSince(if (requestTimeStamp != null) requestTimeStamp.toLong() else 0));
-		respond(request, """{ "status": ${gwen.running}, "log": ${logs}, "timeStamp": $timeStamp }""".toByteArray(), MIMETYPE_JSON);
+		val logs = Gson().toJson(logger.getSince(requestTimeStamp?.toLong() ?: 0));
+		respond(request, """{ "status": ${gwen.running}, "log": $logs, "timeStamp": $timeStamp }""".toByteArray(), MIMETYPE_JSON);
 	}
 
 	private fun handleRestart() {
 		Log.info("Restarting");
-		gwen.start(config!!, oauth!!, gwen.pubSubServer);
+		gwen.start(gwenConfig, oauth, gwen.pubSubServer);
 	}
 
 	private fun handleGetConfig(request: HttpExchange) {
-		val config = config;
-		if (config == null) {
-			error(request, "Gwen is not configured", 400);
-		} else {
-			respond(request, Gson().toJson(config).toByteArray(), MIMETYPE_JSON);
-		}
+		respond(request, Gson().toJson(gwenConfig).toByteArray(), MIMETYPE_JSON);
 	}
 
 	private fun handleSetConfig(request: HttpExchange) {
@@ -271,24 +269,16 @@ class WebInterface : HttpHandler {
 		if (playAudioLocally == null || recordStereo == null || sendLocalAudioInput == null || pubSubPort == null || websocketPubSubPort == null) {
 			error(request, "Invalid config", 400);
 		} else {
-			val config = config;
-			if (config == null) {
-				error(request, "Gwen is not configured", 400);
-			} else {
-				val newConfig = GwenConfig(config.clientId, config.clientSecret, playAudioLocally, sendLocalAudioInput, recordStereo, pubSubPort, websocketPubSubPort);
-				val oauth = oauth;
-				if (oauth == null) {
-					error(request, "Gwen is not configured", 400);
-				} else {
-					gwen.stop();
-					gwen.start(newConfig, oauth, gwen.pubSubServer);
-					com.badlogicgames.gwen.config = newConfig;
-					FileWriter(File(appPath, "gwen.json")).use {
-						Gson().toJson(newConfig, it);
-					}
-					handleGetConfig(request);
-				}
-			}
+			Log.info("Saving config");
+			gwenConfig.playAudioLocally = playAudioLocally;
+			gwenConfig.sendLocalAudioInput = sendLocalAudioInput;
+			gwenConfig.recordStereo = recordStereo;
+			gwenConfig.pubSubPort = pubSubPort;
+			gwenConfig.websocketPubSubPort = websocketPubSubPort;
+			gwenConfig.save();
+			gwen.stop();
+			gwen.start(gwenConfig, oauth, gwen.pubSubServer);
+			handleGetConfig(request);
 		}
 	}
 }

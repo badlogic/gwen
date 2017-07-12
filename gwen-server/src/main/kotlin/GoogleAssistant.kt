@@ -12,9 +12,6 @@ import java.util.*
 import java.util.concurrent.CountDownLatch
 
 class GoogleAssistant : StreamObserver<ConverseResponse> {
-	private val oauth: OAuth;
-	private val audioRecorder: AudioRecorder;
-	private val audioPlayer: AudioPlayer;
 	private var client: EmbeddedAssistantGrpc.EmbeddedAssistantStub;
 	private var currentState: ByteString? = null;
 	private var finished = CountDownLatch(1);
@@ -32,13 +29,9 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		}
 	};
 
-	constructor(oauth: OAuth, audioRecorder: AudioRecorder, audioPlayer: AudioPlayer) {
-		this.oauth = oauth;
-		this.audioRecorder = audioRecorder;
-		this.audioPlayer = audioPlayer;
+	constructor() {
 		val channel = ManagedChannelBuilder.forAddress("embeddedassistant.googleapis.com", 443).build();
 		this.client = EmbeddedAssistantGrpc.newStub(channel);
-		setCredentials(oauth.getCredentials());
 	}
 
 	fun setCredentials(credentials: OAuthCredentials) {
@@ -47,7 +40,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		client = client.withCallCredentials(callCredentials);
 	}
 
-	fun speechToText(): String {
+	fun speechToText(oauth: OAuth, audioRecorder: AudioRecorder, audioPlayer: AudioPlayer): String {
 		setCredentials(oauth.getCredentials());
 
 		val requester = client.converse(this);
@@ -58,7 +51,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		speechToTextResult = "";
 		stopOnRequestText = true;
 
-		requester.onNext(createConfigRequest());
+		requester.onNext(createConfigRequest(audioRecorder, audioPlayer));
 		val timeOutTime = System.currentTimeMillis() + TIME_OUT;
 		while (finished.count != 0.toLong() && System.currentTimeMillis() < timeOutTime) {
 			audioRecorder.read();
@@ -66,16 +59,14 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 				val audioIn = ByteString.copyFrom(audioRecorder.getByteData())
 				val request = ConverseRequest.newBuilder().setAudioIn(audioIn).build();
 				requester.onNext(request);
-			} else {
-				Thread.sleep(20);
 			}
 		}
 		return speechToTextResult;
 	}
 
-	fun converse(callback: GoogleAssistantCallback): Boolean {
-		setCredentials(oauth.getCredentials());
+	fun converse(oauth: OAuth, audioRecorder: AudioRecorder, audioPlayer: AudioPlayer, callback: GoogleAssistantCallback): Boolean {
 		this.callback = callback;
+		setCredentials(oauth.getCredentials());
 
 		val requester = client.converse(this);
 		finished = CountDownLatch(1);
@@ -85,7 +76,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		stopOnRequestText = false;
 		var sentCompleted = false;
 
-		requester.onNext(createConfigRequest());
+		requester.onNext(createConfigRequest(audioRecorder, audioPlayer));
 		val timeOutTime = System.currentTimeMillis() + TIME_OUT;
 		while (finished.count != 0.toLong() && System.currentTimeMillis() < timeOutTime) {
 			audioRecorder.read();
@@ -98,14 +89,13 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 					requester.onCompleted();
 					sentCompleted = true;
 				}
-				Thread.sleep(20);
 			}
 		}
 		if (System.currentTimeMillis() < timeOutTime) currentState = null;
 		return continueConversation;
 	}
 
-	private fun createConfigRequest(): ConverseRequest {
+	private fun createConfigRequest(audioRecorder: AudioRecorder, audioPlayer: AudioPlayer): ConverseRequest {
 		val audioIn = AudioInConfig.newBuilder()
 				  .setEncoding(AudioInConfig.Encoding.LINEAR16)
 				  .setSampleRateHertz(audioRecorder.getSamplingRate()).build();
@@ -115,7 +105,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 
 		val configBuilder = ConverseConfig.newBuilder().setAudioInConfig(audioIn).setAudioOutConfig(audioOut);
 		if (currentState != null) {
-			configBuilder.setConverseState(ConverseState.newBuilder().setConversationState(currentState).build());
+			configBuilder.converseState = ConverseState.newBuilder().setConversationState(currentState).build();
 		}
 		return ConverseRequest.newBuilder().setConfig(configBuilder.build()).build();
 	}
@@ -139,8 +129,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		if (value.audioOut != null) {
 			if (!stopOnRequestText) {
 				val audioData = value.audioOut.audioData.toByteArray();
-				if (audioData.size > 0) {
-					audioPlayer.play(audioData, 0, audioData.size);
+				if (audioData.isNotEmpty()) {
 					callback.answerAudio(audioData);
 				}
 			}

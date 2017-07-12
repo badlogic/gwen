@@ -161,7 +161,7 @@ class GwenTCPPubSubServer : GwenBasePubSubServer {
 		thread.isDaemon = true;
 		thread.name = "Pub/sub server thread";
 		thread.start();
-		Log.info("TCP pub/sub server started on port $config.pubSubPort");
+		Log.info("TCP pub/sub server started on port $port");
 	}
 
 	override fun broadcast(data: ByteArray) {
@@ -232,7 +232,9 @@ class GwenWebSocketPubSubServer : GwenBasePubSubServer {
 				}
 			}
 		};
+		serverSocket.isTcpNoDelay = true;
 		serverSocket.start();
+		Log.info("Websocket pub/sub server started on port $port");
 	}
 
 	override fun broadcast(data: ByteArray) {

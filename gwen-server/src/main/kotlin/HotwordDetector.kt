@@ -31,7 +31,7 @@ class SnowboyHotwordDetector : HotwordDetector {
 	}
 
 	override fun detect(audioData: ShortArray): Boolean {
-		var wasTriggered = triggered;
+		val wasTriggered = triggered;
 		if (wasTriggered) triggered = false;
 		return wasTriggered || detector.RunDetection(audioData, audioData.size) > 0;
 	}
@@ -49,7 +49,7 @@ class WebHotwordDetector : HotwordDetector {
 	}
 
 	override fun detect(audioData: ShortArray): Boolean {
-		var wasTriggered = triggered;
+		val wasTriggered = triggered;
 		if (wasTriggered) triggered = false;
 		return wasTriggered;
 	}
