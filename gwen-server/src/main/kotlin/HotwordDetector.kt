@@ -16,14 +16,14 @@ class SnowboyHotwordDetector : HotwordDetector {
 	@Volatile var triggered: Boolean = false;
 
 	constructor(model: File) {
-		val osName = System.getProperty("os.name").toLowerCase();
-
-		when {
-			osName.contains("mac") -> System.load(File(appPath.absolutePath + "/jni/libsnowboy-detect-java.dylib").absolutePath);
-			else -> System.load(File(appPath.absolutePath + "/jni/libsnowboy-detect-java.so").absolutePath);
-		}
 		Log.debug("Loading Snowboy model ${model.absolutePath}");
-		this.detector = SnowboyDetect(appPath.absolutePath + "/assets/snowboy/common.res", model.absolutePath);
+		this.detector = SnowboyDetect(common.absolutePath, model.absolutePath);
+	}
+
+	constructor(model: String) {
+		Log.debug("Loading Snowboy model ${model}");
+		val file = extractFromClasspathToFile(model);
+		this.detector = SnowboyDetect(common.absolutePath, file.absolutePath);
 	}
 
 	override fun trigger() {
@@ -39,6 +39,18 @@ class SnowboyHotwordDetector : HotwordDetector {
 	override fun close() {
 		detector.delete();
 	}
+}
+
+private val common by lazy {
+	val osName = System.getProperty("os.name").toLowerCase();
+	var libFile: String;
+	when {
+		osName.contains("mac") -> libFile = "jni/libsnowboy-detect-java.dylib";
+		else -> libFile = "jni/libsnowboy-detect-java.so";
+	}
+	val tempFile = extractFromClasspathToFile(libFile);
+	System.load(tempFile.absolutePath);
+	extractFromClasspathToFile("assets/snowboy/common.res");
 }
 
 class WebHotwordDetector : HotwordDetector {

@@ -71,6 +71,7 @@ class GwenEngine {
 													}
 
 													override fun answerAudio(audio: ByteArray) {
+														if (config.playAudioLocally) audioPlayer.play(audio, 0, audio.size);
 														pubSubServer?.questionAnswerAudio(name, audio);
 													}
 												});
@@ -126,8 +127,8 @@ class GwenEngine {
 				models = arrayOf(
 						  GwenModel("Web Command", "", GwenModelType.Command, WebHotwordDetector()),
 						  GwenModel("Web Question", "", GwenModelType.Question, WebHotwordDetector()),
-						  GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector(File(appPath, "assets/snowboy/snowboy.umdl"))),
-						  GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector(File(appPath, "assets/snowboy/alexa.umdl")))
+						  GwenModel("Snowboy", "assets/snowboy/snowboy.umdl", GwenModelType.Command, SnowboyHotwordDetector("assets/snowboy/snowboy.umdl")),
+						  GwenModel("Alexa", "assets/snowboy/alexa.umdl", GwenModelType.Question, SnowboyHotwordDetector("assets/snowboy/alexa.umdl"))
 				);
 			}
 			FileWriter(modelConfig).use {
@@ -139,7 +140,10 @@ class GwenEngine {
 			for (model in models) {
 				info("Loading model ${model.name} (${model.type})")
 				if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
-					model.detector = SnowboyHotwordDetector(File(appPath, model.file));
+					if (model.file.startsWith("assets/snowboy"))
+						model.detector = SnowboyHotwordDetector(model.file);
+					else
+						model.detector = SnowboyHotwordDetector(File(appPath, model.file));
 				else
 					model.detector = WebHotwordDetector();
 			}

@@ -54,7 +54,7 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 
 		// Laugh, but it works! :D
 		when (request.requestURI.path) {
-			"/" -> respond(request, File(appPath, "assets/web/index.html").readText().toByteArray(), MIMETYPE_HTML)
+			"/" -> respond(request, extractFromClasspath("assets/web/index.html"), MIMETYPE_HTML)
 			"/projectSave" -> handleProjectSave(request);
 			"/authorizationUrl" -> handleAuthorizationUrl(request);
 			"/accountSave" -> handleAccountSave(request);
@@ -89,26 +89,19 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 	}
 
 	private fun handleFile(request: HttpExchange) {
-		val root = File(appPath, "assets/web/").absolutePath;
-		val file = File(root + request.requestURI.path).canonicalFile;
-		when {
-			!file.path.startsWith(root) -> error(request, "(403) Forbidden", 403)
-			!file.exists() || file.isDirectory -> error(request, "(404) Not found", 404);
-			else -> {
-				val extension = file.extension;
-				val type: String
-				when (extension.toLowerCase()) {
-					"png" -> type = MIMETYPE_PNG
-					"jpg", "jpeg" -> type = MIMETYPE_JPEG
-					"gif" -> type = MIMETYPE_GIF
-					"html" -> type = MIMETYPE_HTML
-					"css" -> type = MIMETYPE_CSS
-					"js" -> type = MIMETYPE_JS
-					else -> type = MIMETYPE_BINARY
-				}
-				respond(request, file.readBytes(), type);
-			}
+		val file = "assets/web/" + request.requestURI.path;
+		val extension = File(file).extension;
+		val type: String
+		when (extension.toLowerCase()) {
+			"png" -> type = MIMETYPE_PNG
+			"jpg", "jpeg" -> type = MIMETYPE_JPEG
+			"gif" -> type = MIMETYPE_GIF
+			"html" -> type = MIMETYPE_HTML
+			"css" -> type = MIMETYPE_CSS
+			"js" -> type = MIMETYPE_JS
+			else -> type = MIMETYPE_BINARY
 		}
+		respond(request, extractFromClasspath(file), type);
 	}
 
 	private fun parseParams(request: HttpExchange): Map<String, String> {

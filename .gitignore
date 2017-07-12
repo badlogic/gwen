@@ -11,3 +11,6 @@ config.json
 models.json
 log.txt
 usermodels/
+gwen-server/common.res
+gwen-server/libsnowboy-detect
+gwen-server/tempModel
