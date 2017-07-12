@@ -13,6 +13,7 @@ fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, po
 	val server = HttpServer.create(InetSocketAddress(port), 0);
 	server.createContext("/", WebInterface(gwenConfig, oauth, gwen));
 	server.start();
+	Log.debug("Started web interface on port $port");
 }
 
 fun printWebInterfaceUrl() {
@@ -39,6 +40,8 @@ val MIMETYPE_JS = "text/javascript"
 class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenEngine) : HttpHandler {
 
 	override fun handle(request: HttpExchange) {
+		Log.trace("Hanlding request ${request.requestURI.path}")
+
 		// redirect to setup pages
 		if (request.requestURI.path.endsWith(".html") || request.requestURI.path == "/") {
 			if (gwenConfig.assistantConfig == null && request.requestURI.path != "/setup-project.html") {
@@ -89,7 +92,7 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 	}
 
 	private fun handleFile(request: HttpExchange) {
-		val file = "assets/web/" + request.requestURI.path;
+		val file = "assets/web" + request.requestURI.path;
 		val extension = File(file).extension;
 		val type: String
 		when (extension.toLowerCase()) {

@@ -9,6 +9,7 @@ project.ext.mainClassName="com.badlogicgames.gwen.Gwen"
 task dist(dependsOn: classes, type: Jar) {
     from files(sourceSets.main.output.classesDir)
     from files(sourceSets.main.output.resourcesDir)
+    from files(new File("src/main/resources"))
     from {configurations.compile.collect {zipTree(it)}}    
  
     manifest {
