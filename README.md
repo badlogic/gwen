@@ -19,7 +19,7 @@ Gwen has been tested on macOS as well as Raspberian on a Raspberry PI. Support f
 Gwen does currently not work on Windows as Snowboy is not supported there. Gwen currently only supports English.
    
 ## Why?
-Gwen was created as a means to control what data is being send to Google. Depending on your reading of the
+Gwen was created as a means to control what data is being sent to Google. Depending on your reading of the
 [Google Home data security and privacy policy](https://support.google.com/googlehome/answer/7072285?hl=en), Google
  may gather any data the Google Home device can record *"to make [their] services faster, smarter, more relevant, and 
  more useful to you"*. By placing a Google Home device in your home and associating it with your Google account,
