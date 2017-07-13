@@ -25,7 +25,7 @@ Gwen was created as a means to control what data is being send to Google. Depend
  more useful to you"*. By placing a Google Home device in your home and associating it with your Google account,
  Google may get to know you more up-close than you may want.
  
- Another motivation to create Gwen is to enable creating our own, custom command processing for home automation,
+ Another motivation for Gwen is it to enable creating our own, custom command processing for home automation,
  making the entire setup trivial for programmers.
 
 ## How?
