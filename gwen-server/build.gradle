@@ -17,8 +17,8 @@ task dist(dependsOn: classes, type: Jar) {
     }
 }
 
-def tcNative() {
-    if (System.getProperty("os.arch").toLowerCase().contains("arm")) {
+def tcNative() {    
+    if (System.getProperty("TARGET").equals("RPI") || System.getProperty("os.arch").toLowerCase().contains("arm")) {
         return fileTree(dir: 'libs', include: ['*.jar*'])
     } else {
         return "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26"
