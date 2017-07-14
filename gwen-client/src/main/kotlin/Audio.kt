@@ -57,12 +57,12 @@ class LocalAudioRecorder : AudioRecorder {
 				var right1 = buffer[i + 2].toInt().and(0xFF);
 				var right2 = buffer[i + 3].toInt().and(0xFF);
 
-				var left = (left1 or (left2 shl 8)).toShort();
-				var right = (right1 or (right2 shl 8)).toShort();
+				var left = (left1 or left2.shl(8)).toShort();
+				var right = (right1 or right2.shl(8)).toShort();
 				var mono = (left + right) / 2;
 
 				byteData[byteIndex] = mono.toByte();
-				byteData[byteIndex + 1] = (mono ushr 8).toByte();
+				byteData[byteIndex + 1] = mono.ushr(8).toByte();
 				byteIndex += 2;
 
 				shortData[shortIndex++] = mono.toShort();
@@ -72,7 +72,7 @@ class LocalAudioRecorder : AudioRecorder {
 			for (i in 0..buffer.size - 1 step 2) {
 				var mono1 = buffer[i].toInt().and(0xFF);
 				var mono2 = buffer[i + 1].toInt().and(0xFF);
-				shortData[shortIndex++] = (mono1 or (mono2 shl 8)).toShort();
+				shortData[shortIndex++] = (mono1 or mono2.shl(8)).toShort();
 			}
 			System.arraycopy(buffer, 0, byteData, 0, byteData.size);
 		}
