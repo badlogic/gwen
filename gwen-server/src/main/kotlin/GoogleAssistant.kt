@@ -34,6 +34,12 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		this.client = EmbeddedAssistantGrpc.newStub(channel);
 	}
 
+	fun initialize(oauth: OAuth) {
+		// Make an assistant call at start up so the first real call isn't slow.
+		setCredentials(oauth.getCredentials());
+		client.converse(this).onCompleted();
+	}
+
 	fun setCredentials(credentials: OAuthCredentials) {
 		val token = AccessToken(credentials.accessToken, Date(credentials.expirationTime));
 		val callCredentials = MoreCallCredentials.from(OAuth2Credentials(token));

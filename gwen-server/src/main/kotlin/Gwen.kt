@@ -53,6 +53,7 @@ class GwenEngine {
 				val assistant = GoogleAssistant();
 				val thread = Thread(fun() {
 					try {
+						assistant.initialize(oauth);
 						info("Gwen started");
 						while (running) {
 							audioRecorder.read();
