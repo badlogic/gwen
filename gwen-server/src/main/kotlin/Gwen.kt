@@ -82,7 +82,7 @@ class GwenEngine {
 											GwenModelType.Command -> {
 												info("Command hotword detected, starting speech-to-text: " + name);
 												val command = assistant.speechToText(oauth, audioRecorder, audioPlayer);
-												info("Speech-to-text result: '$command'");
+												info("Speech-to-text result: $command");
 												info("Waiting for hotword");
 												if (!command.isEmpty()) pubSubServer?.command(name, command);
 											}
