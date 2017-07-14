@@ -27,10 +27,11 @@ data class GwenConfig(var assistantConfig: GoogleAssistantConfig? = null,
 							 var sendLocalAudioInput: Boolean = false,
 							 var recordStereo: Boolean = false,
 							 var pubSubPort: Int = 8778,
-							 var websocketPubSubPort: Int = 8779) {
+							 var websocketPubSubPort: Int = 8779,
+							 @Transient var file: File) {
 
 	@Synchronized fun save() {
-		FileWriter(File(appPath, "config.json")).use {
+		FileWriter(file).use {
 			val credentials = this.credentials;
 			if (credentials != null) {
 				credentials.expirationTime = System.currentTimeMillis() + credentials.expiresIn * 1000;
@@ -40,15 +41,16 @@ data class GwenConfig(var assistantConfig: GoogleAssistantConfig? = null,
 	}
 }
 
-fun loadConfig(): GwenConfig {
+fun loadConfig(configFile: File = File(appPath, "config.json")): GwenConfig {
 	try {
-		val configFile = File(appPath, "config.json");
 		if (!configFile.exists()) {
 			debug("No config file found");
-			return GwenConfig();
+			return GwenConfig(file = configFile);
 		} else {
 			debug("Loading config")
-			return Gson().fromJson<GwenConfig>(JsonReader(FileReader(File(appPath, "config.json"))), GwenConfig::class.java);
+			var config = Gson().fromJson<GwenConfig>(JsonReader(FileReader(configFile)), GwenConfig::class.java);
+			config.file = configFile;
+			return config;
 		}
 	} catch (e: Throwable) {
 		error("Error loading config", e);
