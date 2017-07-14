@@ -1,7 +1,7 @@
 
 package com.badlogicgames.gwen;
 
-import com.esotericsoftware.minlog.Log;
+import static com.esotericsoftware.minlog.Log.*;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -106,7 +106,7 @@ public abstract class FormDataHandler implements HttpHandler {
 			requestStream.close();
 			bos.close();
 		} catch (IOException e) {
-			Log.error("error while decoding http input stream", e);
+			error("error while decoding http input stream", e);
 		}
 		return bos.toByteArray();
 	}

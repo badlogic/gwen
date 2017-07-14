@@ -1,6 +1,6 @@
 package com.badlogicgames.gwen;
 
-import com.esotericsoftware.minlog.Log
+import com.esotericsoftware.minlog.Log.*
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
@@ -44,14 +44,14 @@ fun loadConfig(): GwenConfig {
 	try {
 		val configFile = File(appPath, "config.json");
 		if (!configFile.exists()) {
-			Log.debug("No config file found");
+			debug("No config file found");
 			return GwenConfig();
 		} else {
-			Log.debug("Loading config")
+			debug("Loading config")
 			return Gson().fromJson<GwenConfig>(JsonReader(FileReader(File(appPath, "config.json"))), GwenConfig::class.java);
 		}
 	} catch (e: Throwable) {
-		Log.error("Error loading config", e);
+		error("Error loading config", e);
 		throw Exception("Error loading config", e);
 	}
 }

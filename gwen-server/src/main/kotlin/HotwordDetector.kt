@@ -1,7 +1,7 @@
 package com.badlogicgames.gwen;
 
 import ai.kitt.snowboy.SnowboyDetect
-import com.esotericsoftware.minlog.Log
+import com.esotericsoftware.minlog.Log.*
 import java.io.Closeable
 import java.io.File
 
@@ -16,12 +16,12 @@ class SnowboyHotwordDetector : HotwordDetector {
 	@Volatile var triggered: Boolean = false;
 
 	constructor(model: File) {
-		Log.debug("Loading Snowboy model ${model.absolutePath}");
+		debug("Loading Snowboy model ${model.absolutePath}");
 		this.detector = SnowboyDetect(common.absolutePath, model.absolutePath);
 	}
 
 	constructor(model: String) {
-		Log.debug("Loading Snowboy model ${model}");
+		debug("Loading Snowboy model ${model}");
 		val file = extractFromClasspathToFile(model);
 		this.detector = SnowboyDetect(common.absolutePath, file.absolutePath);
 	}

@@ -1,8 +1,7 @@
 package com.badlogicgames.gwen;
 
 import com.esotericsoftware.minlog.Log
-import com.esotericsoftware.minlog.Log.error
-import com.esotericsoftware.minlog.Log.trace
+import com.esotericsoftware.minlog.Log.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 

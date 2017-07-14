@@ -1,6 +1,6 @@
 package com.badlogicgames.gwen;
 
-import com.esotericsoftware.minlog.Log
+import com.esotericsoftware.minlog.Log.*
 import com.google.assistant.embedded.v1alpha1.*
 import com.google.auth.oauth2.AccessToken
 import com.google.auth.oauth2.OAuth2Credentials
@@ -114,16 +114,16 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		if (value == null) return;
 
 		if (value.eventType != ConverseResponse.EventType.EVENT_TYPE_UNSPECIFIED) {
-			Log.trace("Asssitant - Event, type : ${value.eventType.name}");
+			trace("Asssitant - Event, type : ${value.eventType.name}");
 		}
 
 		if (value.eventType == ConverseResponse.EventType.END_OF_UTTERANCE) {
-			Log.trace("Assistant - End of utterance");
+			trace("Assistant - End of utterance");
 			stopRecording = true;
 		}
 
 		if (value.error != null && value.error.code != 0) {
-			Log.trace("Assistant - Error: ${value.error.message}");
+			trace("Assistant - Error: ${value.error.message}");
 		}
 
 		if (value.audioOut != null) {
@@ -139,23 +139,23 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 			this.currentState = value.result.conversationState
 
 			if (value.result.spokenRequestText != null && !value.result.spokenRequestText.isEmpty()) {
-				Log.trace("Assistant - Question Text : ${value.result.spokenRequestText}");
+				trace("Assistant - Question Text : ${value.result.spokenRequestText}");
 				speechToTextResult = value.result.spokenRequestText
 				if (stopOnRequestText) finished.countDown();
 				else callback.questionComplete(speechToTextResult);
 			}
 
 			if (value.result.spokenResponseText != null && !value.result.spokenResponseText.isEmpty()) {
-				Log.trace("Assistant - Answer Text : ${value.result.spokenResponseText}");
+				trace("Assistant - Answer Text : ${value.result.spokenResponseText}");
 			}
 
 			if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {
-				Log.trace("Assistant - Dialog follow on");
+				trace("Assistant - Dialog follow on");
 				continueConversation = true;
 				isCompleted = true;
 			}
 			if (value.result.microphoneMode == ConverseResult.MicrophoneMode.CLOSE_MICROPHONE) {
-				Log.trace("Assistant - Close microphone");
+				trace("Assistant - Close microphone");
 				continueConversation = false;
 				isCompleted = true;
 				if (stopOnRequestText) finished.countDown();
