@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpServer
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
+import java.net.Inet4Address
 
 fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, port: Int = 8777) {
 	val server = HttpServer.create(InetSocketAddress(port), 0);
@@ -16,13 +17,16 @@ fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, po
 	Log.debug("Started web interface on port $port");
 }
 
-fun printWebInterfaceUrl() {
-	for (itf in NetworkInterface.getNetworkInterfaces()) {
-		if (itf.isLoopback) continue;
-		for (addr in itf.inetAddresses) {
+fun printWebInterfaceUrls() {
+	for (iface in NetworkInterface.getNetworkInterfaces()) {
+		try {
+			if (iface.isLoopback) continue;
+		} catch (ignored: Exception) {
+		}
+		for (iaddr in iface.interfaceAddresses) {
 			// Because we don't like IPV6 and don't know how to get the local IP address...
-			if (addr.hostAddress.startsWith("192") || addr.hostAddress.startsWith("10"))
-				println("http://${addr.hostName}:8777/");
+			if (iaddr.address !is Inet4Address) continue;
+			Log.info("http://${iaddr.address.hostName}:8777/");
 		}
 	}
 }

@@ -242,9 +242,9 @@ fun main(args: Array<String>) {
 		startWebInterface(config, oauth, gwen);
 		if (config.assistantConfig == null || !oauth.isAuthorized()) {
 			println("Setup through web interface required (http://<local-ip-address>:8777)");
-			printWebInterfaceUrl();
+			printWebInterfaceUrls();
 		} else {
-			printWebInterfaceUrl();
+			printWebInterfaceUrls();
 			try {
 				gwen.start(config, oauth);
 			} catch (t: Throwable) {
