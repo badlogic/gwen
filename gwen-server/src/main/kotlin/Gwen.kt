@@ -87,6 +87,8 @@ class GwenEngine {
 												if (!command.isEmpty()) pubSubServer?.command(name, command);
 											}
 										}
+										for (model in models)
+											if (model.detector != detector) model.detector.reset();
 										debug("Waiting for hotword");
 										break;
 									}

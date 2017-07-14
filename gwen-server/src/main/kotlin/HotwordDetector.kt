@@ -7,7 +7,7 @@ import java.io.File
 
 interface HotwordDetector : Closeable {
 	fun trigger();
-
+	fun reset();
 	fun detect(audioData: ShortArray): Boolean;
 }
 
@@ -17,13 +17,13 @@ class SnowboyHotwordDetector : HotwordDetector {
 
 	constructor(model: File) {
 		debug("Loading Snowboy model: ${model.absolutePath}");
-		this.detector = SnowboyDetect(common.absolutePath, model.absolutePath);
+		detector = SnowboyDetect(common.absolutePath, model.absolutePath);
 	}
 
 	constructor(model: String) {
 		debug("Loading Snowboy model: ${model}");
 		val file = extractFromClasspathToFile(model);
-		this.detector = SnowboyDetect(common.absolutePath, file.absolutePath);
+		detector = SnowboyDetect(common.absolutePath, file.absolutePath);
 	}
 
 	override fun trigger() {
@@ -34,6 +34,10 @@ class SnowboyHotwordDetector : HotwordDetector {
 		val wasTriggered = triggered;
 		if (wasTriggered) triggered = false;
 		return wasTriggered || detector.RunDetection(audioData, audioData.size) > 0;
+	}
+
+	override fun reset() {
+		detector.Reset();
 	}
 
 	override fun close() {
@@ -64,6 +68,9 @@ class WebHotwordDetector : HotwordDetector {
 		val wasTriggered = triggered;
 		if (wasTriggered) triggered = false;
 		return wasTriggered;
+	}
+
+	override fun reset() {
 	}
 
 	override fun close() {
