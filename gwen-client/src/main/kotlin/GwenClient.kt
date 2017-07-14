@@ -93,7 +93,7 @@ abstract class GwenPubSubClient: Closeable {
             }
         });
         thread.isDaemon = true;
-        thread.name = "Pub/sub client thread";
+        thread.name = "GwenPubSubClient";
         thread.start();
     }
 

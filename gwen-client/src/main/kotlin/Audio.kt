@@ -107,7 +107,7 @@ class LocalAudioPlayer : AudioPlayer {
 		this.line = AudioSystem.getLine(lineInfo) as SourceDataLine;
 		this.line.open(format);
 		this.line.start();
-		info("Started local audio player, ${samplingRate}Hz");
+		info("Started local audio player: " + line.getFormat().toString());
 	}
 
 	override fun getSamplingRate(): Int {
@@ -130,7 +130,7 @@ class LocalAudioPlayer : AudioPlayer {
 
 class NullAudioPlayer : AudioPlayer {
 	constructor() {
-		info("Started null audio player");
+		debug("Started null audio player");
 	}
 
 	override fun play(audio: ByteArray, offset: Int, length: Int) {

@@ -44,16 +44,15 @@ data class GwenConfig(var assistantConfig: GoogleAssistantConfig? = null,
 fun loadConfig(configFile: File = File(appPath, "config.json")): GwenConfig {
 	try {
 		if (!configFile.exists()) {
-			debug("No config file found");
+			debug("Config file not found: " + configFile);
 			return GwenConfig(file = configFile);
 		} else {
-			debug("Loading config")
+			debug("Loading config: " + configFile)
 			var config = Gson().fromJson<GwenConfig>(JsonReader(FileReader(configFile)), GwenConfig::class.java);
 			config.file = configFile;
 			return config;
 		}
 	} catch (e: Throwable) {
-		error("Error loading config", e);
-		throw Exception("Error loading config", e);
+		throw Exception("Error loading config: " + configFile, e);
 	}
 }

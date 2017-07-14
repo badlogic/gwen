@@ -16,12 +16,12 @@ class SnowboyHotwordDetector : HotwordDetector {
 	@Volatile var triggered: Boolean = false;
 
 	constructor(model: File) {
-		debug("Loading Snowboy model ${model.absolutePath}");
+		debug("Loading Snowboy model: ${model.absolutePath}");
 		this.detector = SnowboyDetect(common.absolutePath, model.absolutePath);
 	}
 
 	constructor(model: String) {
-		debug("Loading Snowboy model ${model}");
+		debug("Loading Snowboy model: ${model}");
 		val file = extractFromClasspathToFile(model);
 		this.detector = SnowboyDetect(common.absolutePath, file.absolutePath);
 	}

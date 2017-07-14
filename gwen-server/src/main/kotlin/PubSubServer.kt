@@ -154,14 +154,15 @@ class GwenTCPPubSubServer : GwenBasePubSubServer {
 					client.tcpNoDelay = true;
 					clients.add(client);
 				}
-				info("New TCP pub/sub client (${client.inetAddress.hostAddress})");
+				info("TCP pub/sub client connected: ${client.inetAddress.hostAddress}");
 			}
+			info("TCP pub/sub server stopped");
 		});
 		this.thread = thread;
 		thread.isDaemon = true;
-		thread.name = "Pub/sub server thread";
+		thread.name = "GwenTCPPubSubServer";
 		thread.start();
-		info("TCP pub/sub server started on port $port");
+		info("TCP pub/sub server started on port: $port");
 	}
 
 	override fun broadcast(data: ByteArray) {
@@ -171,7 +172,7 @@ class GwenTCPPubSubServer : GwenBasePubSubServer {
 				try {
 					client.outputStream.write(data);
 				} catch(t: Throwable) {
-					info("TCP client ${client.inetAddress.hostAddress} disconnected");
+					info("TCP pub/sub client disconnected: ${client.inetAddress.hostAddress}");
 					try {
 						client.close()
 					} catch (e: IOException) { /* YOLO */
@@ -186,7 +187,7 @@ class GwenTCPPubSubServer : GwenBasePubSubServer {
 	override fun close() {
 		synchronized(this) {
 			if (running) {
-				info("Stopping TCP pub/sub server");
+				debug("Stopping TCP pub/sub server");
 				running = false;
 				serverSocket.close();
 				for (client in clients) client.close();
@@ -206,27 +207,26 @@ class GwenWebSocketPubSubServer : GwenBasePubSubServer {
 			override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
 				synchronized(clients) {
 					clients.add(conn);
-					info("New Websocket pub/sub client (${conn.remoteSocketAddress.address.hostAddress})");
+					info("Websocket pub/sub client connected: ${conn.remoteSocketAddress.address.hostAddress}");
 				}
 			}
 
 			override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
 				synchronized(clients) {
 					clients.remove(conn);
-					info("Websocket client ${conn.remoteSocketAddress.address.hostAddress} disconnected");
+					info("Websocket pub/sub client disconnected: ${conn.remoteSocketAddress.address.hostAddress}");
 				}
 			}
 
 			override fun onMessage(conn: WebSocket, message: String) {
-				// No-op
 			}
 
 			override fun onStart() {
-				info("Websocket pub/sub server started on port $port");
 			}
 
 			override fun onError(conn: WebSocket, ex: Exception) {
-				info("Error, removing Websocket client ${conn.remoteSocketAddress.address.hostAddress}");
+				error("Websocket client error: ${conn.remoteSocketAddress.address.hostAddress}", ex);
+				conn.close();
 				synchronized(clients) {
 					clients.remove(conn);
 				}
@@ -234,7 +234,7 @@ class GwenWebSocketPubSubServer : GwenBasePubSubServer {
 		};
 		serverSocket.isTcpNoDelay = true;
 		serverSocket.start();
-		info("Websocket pub/sub server started on port $port");
+		info("Websocket pub/sub server started on port: $port");
 	}
 
 	override fun broadcast(data: ByteArray) {
@@ -246,7 +246,7 @@ class GwenWebSocketPubSubServer : GwenBasePubSubServer {
 	}
 
 	override fun close() {
-		info("Stopping Websocket pub/sub server");
 		serverSocket.stop();
+		info("Websocket pub/sub server stopped");
 	}
 }

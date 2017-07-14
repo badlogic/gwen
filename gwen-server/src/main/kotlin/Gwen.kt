@@ -31,7 +31,7 @@ class Logger : Log.Logger() {
 	}
 }
 
-data class GwenModel(val name: String, val file: String, val type: GwenModelType, @kotlin.jvm.Transient var detector: HotwordDetector);
+data class GwenModel(val name: String, val file: String, val type: GwenModelType, @Transient var detector: HotwordDetector);
 
 class GwenEngine {
 	@Volatile var running = false;
@@ -63,7 +63,7 @@ class GwenEngine {
 										pubSubServer?.hotwordDetected(name, type);
 										when (type) {
 											GwenModelType.Question -> {
-												info("QA hotword detected, starting assistant conversation");
+												info("QA hotword detected, starting assistant conversation: " + name);
 												// FIXME should we continue conversation?
 												assistant.converse(oauth, audioRecorder, audioPlayer, object : GoogleAssistant.GoogleAssistantCallback {
 													override fun questionComplete(question: String) {
@@ -80,7 +80,7 @@ class GwenEngine {
 												info("Waiting for hotword");
 											}
 											GwenModelType.Command -> {
-												info("Command hotword detected, starting speech-to-text");
+												info("Command hotword detected, starting speech-to-text: " + name);
 												val command = assistant.speechToText(oauth, audioRecorder, audioPlayer);
 												info("Speech-to-text result: '$command'");
 												info("Waiting for hotword");
@@ -103,12 +103,12 @@ class GwenEngine {
 					}
 				});
 				thread.isDaemon = true;
-				thread.name = "Gwen engine thread";
+				thread.name = "GwenEngine";
 				this.thread = thread;
 				running = true;
 				thread.start();
 			} catch (t: Throwable) {
-				error("Couldn't reload Gwen", t);
+				error("Error reloading Gwen", t);
 			}
 		}
 	}
@@ -138,7 +138,7 @@ class GwenEngine {
 		} else {
 			models = Gson().fromJson<Array<GwenModel>>(JsonReader(FileReader(File(appPath, "models.json"))), Array<GwenModel>::class.java);
 			for (model in models) {
-				info("Loading model ${model.name} (${model.type})")
+				info("Loading model: ${model.name} (${model.type})")
 				if (model.file.endsWith(".umdl") || model.file.endsWith(".pmdl"))
 					if (model.file.startsWith("assets/snowboy"))
 						model.detector = SnowboyHotwordDetector(model.file);
@@ -152,7 +152,7 @@ class GwenEngine {
 	}
 
 	@Synchronized fun addModel(name: String, fileName: String, type: GwenModelType, modelData: ByteArray) {
-		info("Adding model $name, $type");
+		info("Adding model: $name, $type");
 
 		val userModelsDir = File(appPath, "usermodels");
 		if (!userModelsDir.exists()) userModelsDir.mkdirs();
@@ -173,7 +173,7 @@ class GwenEngine {
 	}
 
 	@Synchronized fun deleteModel(modelName: String) {
-		info("Deleting model $modelName");
+		info("Deleting model: $modelName");
 
 		val newModels = models.toMutableList();
 		newModels.removeIf {
@@ -190,7 +190,7 @@ class GwenEngine {
 	}
 
 	@Synchronized fun triggerModel(modelName: String) {
-		info("Triggering model $modelName");
+		info("Triggering model: $modelName");
 
 		val newModels = models.toMutableList();
 		newModels.removeIf {
@@ -203,7 +203,7 @@ class GwenEngine {
 
 	fun stop() {
 		if (running) {
-			info("Stopping Gwen");
+			debug("Stopping Gwen");
 			synchronized(this) {
 				running = false;
 			}
@@ -226,13 +226,13 @@ fun main(args: Array<String>) {
 			}
 		}
 
-		val logFile = File(appPath, "/log.txt");
+		val logFile = File(appPath, "log.txt");
 		try {
 			val output = FileOutputStream(logFile);
 			System.setOut(PrintStream(MultiplexOutputStream(System.out, output), true));
 			System.setErr(PrintStream(MultiplexOutputStream(System.err, output), true));
 		} catch (ex: Throwable) {
-			warn("Unable to write log file.", ex);
+			warn("Unable to write log file", ex);
 		}
 
 		val config = loadConfig();
@@ -241,17 +241,15 @@ fun main(args: Array<String>) {
 
 		startWebInterface(config, oauth, gwen);
 		if (config.assistantConfig == null || !oauth.isAuthorized()) {
-			println("Setup through web interface required (http://<local-ip-address>:8777)");
-			printWebInterfaceUrls();
+			println("Setup through web interface required");
 		} else {
-			printWebInterfaceUrls();
 			try {
 				gwen.start(config, oauth);
 			} catch (t: Throwable) {
-				error("Couldn't start Gwen, setup through webinterface required", t);
+				error("Error starting Gwen, setup through webinterface required", t);
 			}
 		}
 	} catch (e: Throwable) {
-		error("Gwen stopped due to unrecoverable error", e);
+		error("Gwen stopped due to an unrecoverable error", e);
 	}
 }

@@ -37,10 +37,7 @@ class OAuth {
 		this.gwenConfig = gwenConfig;
 		this.config = config;
 		val client = Retrofit.Builder().baseUrl(config.endPoint)?.addConverterFactory(GsonConverterFactory.create())?.build()?.create(OAuthClient::class.java);
-		if (client == null) {
-			error("Couldn't create OAuth client");
-			throw Exception("Couldn't create OAuth client");
-		}
+		if (client == null) throw Exception("Couldn't create OAuth client");
 		this.client = client;
 	}
 
@@ -66,8 +63,7 @@ class OAuth {
 			gwenConfig.save();
 			trace("Got access token");
 		} else {
-			error("Couldn't get access token, ${response.errorBody().string()}");
-			throw Exception("Couldn't request token");
+			throw Exception("Couldn't request token: ${response.errorBody().string()}");
 		}
 	}
 
@@ -88,8 +84,7 @@ class OAuth {
 			Log.info("Refreshed token");
 		} else {
 			gwenConfig.credentials = null;
-			error("Couldn't refresh token, ${response.errorBody().string()}");
-			throw Exception("Couldn't refresh token ${response.errorBody().string()}")
+			throw Exception("Couldn't refresh token: ${response.errorBody().string()}")
 		}
 	}
 }

@@ -114,7 +114,7 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 		if (value == null) return;
 
 		if (value.eventType != ConverseResponse.EventType.EVENT_TYPE_UNSPECIFIED) {
-			trace("Asssitant - Event, type : ${value.eventType.name}");
+			trace("Asssitant - Event, type: ${value.eventType.name}");
 		}
 
 		if (value.eventType == ConverseResponse.EventType.END_OF_UTTERANCE) {
@@ -139,14 +139,14 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 			this.currentState = value.result.conversationState
 
 			if (value.result.spokenRequestText != null && !value.result.spokenRequestText.isEmpty()) {
-				trace("Assistant - Question Text : ${value.result.spokenRequestText}");
+				trace("Assistant - Question text: ${value.result.spokenRequestText}");
 				speechToTextResult = value.result.spokenRequestText
 				if (stopOnRequestText) finished.countDown();
 				else callback.questionComplete(speechToTextResult);
 			}
 
 			if (value.result.spokenResponseText != null && !value.result.spokenResponseText.isEmpty()) {
-				trace("Assistant - Answer Text : ${value.result.spokenResponseText}");
+				trace("Assistant - Answer text: ${value.result.spokenResponseText}");
 			}
 
 			if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {

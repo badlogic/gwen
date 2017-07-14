@@ -106,7 +106,7 @@ public abstract class FormDataHandler implements HttpHandler {
 			requestStream.close();
 			bos.close();
 		} catch (IOException e) {
-			error("error while decoding http input stream", e);
+			error("Error decoding HTTP input stream", e);
 		}
 		return bos.toByteArray();
 	}

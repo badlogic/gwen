@@ -14,10 +14,7 @@ fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, po
 	val server = HttpServer.create(InetSocketAddress(port), 0);
 	server.createContext("/", WebInterface(gwenConfig, oauth, gwen));
 	server.start();
-	debug("Started web interface on port $port");
-}
-
-fun printWebInterfaceUrls() {
+	info("Web interface started:");
 	for (iface in NetworkInterface.getNetworkInterfaces()) {
 		try {
 			if (iface.isLoopback) continue;
@@ -41,10 +38,10 @@ val MIMETYPE_JPEG = "image/jpeg"
 val MIMETYPE_GIF = "image/gif"
 val MIMETYPE_JS = "text/javascript"
 
-class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenEngine) : HttpHandler {
+class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenEngine) : HttpHandler {
 
 	override fun handle(request: HttpExchange) {
-		trace("Hanlding request ${request.requestURI.path}")
+		trace("Web interface request: ${request.requestURI.path}")
 
 		// redirect to setup pages
 		if (request.requestURI.path.endsWith(".html") || request.requestURI.path == "/") {
@@ -85,11 +82,13 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 		}
 	}
 
-	private fun error(request: HttpExchange, message: String, status: Int) {
+	private fun error(request: HttpExchange, status: Int, message: String, ex: Throwable? = null) {
+		error(message, ex);
 		respond(request, message.toByteArray(), MIMETYPE_PLAINTEXT, status);
 	}
 
 	private fun redirect(request: HttpExchange, url: String) {
+		trace("Web interface redirect: $url")
 		request.responseHeaders.add("Location", url);
 		request.sendResponseHeaders(302, 0);
 		request.responseBody.close();
@@ -111,7 +110,7 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 		try {
 			respond(request, extractFromClasspath(file), type);
 		} catch (ex: Exception) {
-			error("Error servering web interface file: " + file, ex);
+			error("Error serving web interface file: " + file, ex);
 		}
 	}
 
@@ -137,14 +136,12 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 			try {
 				gwenConfig.save();
 			} catch(t: Throwable) {
-				error("Couldn't save config", t);
-				error(request, "Couldn't save config", 400);
-				File(appPath, "gwen.json").delete();
+				error(request, 400, "Couldn't save config", t);
 			}
 			gwen.stop();
 			redirect(request, "/");
 		} else {
-			error(request, "Invalid client id & secret", 400);
+			error(request, 400, "Invalid client ID & secret");
 		}
 	}
 
@@ -157,8 +154,7 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 			try {
 				oauth.requestAccessToken(code);
 			} catch(t: Throwable) {
-				error("Couldn't authorize", t);
-				error(request, "Couldn't authorize", 400);
+				error(request, 400, "Couldn't authorize", t);
 				return;
 			}
 			if (oauth.isAuthorized()) {
@@ -166,10 +162,10 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 				gwen.start(gwenConfig, oauth, gwen.pubSubServer);
 				redirect(request, "/");
 			} else {
-				error(request, "Invalid code, authorization failed", 400);
+				error(request, 400, "Invalid code, authorization failed");
 			}
 		} else {
-			error(request, "Invalid code, authorization failed", 400);
+			error(request, 400, "Invalid code, authorization failed");
 		}
 	}
 
@@ -194,15 +190,13 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 		val parts = fileHandler.parts;
 
 		if (parts["modelName"] == null || parts["modelType"] == null || parts["file"] == null) {
-			error("Couldn't save model, request incomplete");
-			error(request, "Couldn't save model, request incomplete", 400);
+			error(request, 400, "Couldn't save model, request incomplete");
 		} else {
 			try {
 				gwen.addModel(parts["modelName"]!!.value, parts["file"]!!.filename, GwenModelType.valueOf(parts["modelType"]!!.value), parts["file"]!!.bytes);
 				handleModels(request);
 			} catch(t: Throwable) {
-				error("Couldn't save model", t);
-				error(request, "Couldn't save model", 400);
+				error(request, 400, "Couldn't save model", t);
 			}
 		}
 	}
@@ -216,11 +210,10 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 				gwen.deleteModel(modelName);
 				handleModels(request);
 			} catch(t: Throwable) {
-				error("Couldn't delete model $modelName", t);
-				error(request, "Couldn't delete model", 400);
+				error(request, 400, "Couldn't delete model: $modelName", t);
 			}
 		} else {
-			error(request, "Couldn't delete model", 400);
+			error(request, 400, "Couldn't delete model");
 		}
 	}
 
@@ -233,11 +226,10 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 				gwen.triggerModel(modelName);
 				handleModels(request);
 			} catch(t: Throwable) {
-				error("Couldn't trigger model $modelName", t);
-				error(request, "Couldn't trigger model", 400);
+				error(request, 400, "Couldn't trigger model: $modelName", t);
 			}
 		} else {
-			error(request, "Couldn't trigger model", 400);
+			error(request, 400, "Couldn't trigger model");
 		}
 	}
 
@@ -271,7 +263,7 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 		val websocketPubSubPort = params["websocketPubSubPort"]?.toInt();
 
 		if (playAudioLocally == null || recordStereo == null || sendLocalAudioInput == null || pubSubPort == null || websocketPubSubPort == null) {
-			error(request, "Invalid config", 400);
+			error(request, 400, "Invalid config");
 		} else {
 			info("Saving config");
 			gwenConfig.playAudioLocally = playAudioLocally;
