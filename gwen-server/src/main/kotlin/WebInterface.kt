@@ -108,7 +108,11 @@ class WebInterface (val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: Gwen
 			"js" -> type = MIMETYPE_JS
 			else -> type = MIMETYPE_BINARY
 		}
-		respond(request, extractFromClasspath(file), type);
+		try {
+			respond(request, extractFromClasspath(file), type);
+		} catch (ex: Exception) {
+			error("Error servering web interface file: " + file, ex);
+		}
 	}
 
 	private fun parseParams(request: HttpExchange): Map<String, String> {
