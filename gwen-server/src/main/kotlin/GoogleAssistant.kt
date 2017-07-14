@@ -139,14 +139,14 @@ class GoogleAssistant : StreamObserver<ConverseResponse> {
 			this.currentState = value.result.conversationState
 
 			if (value.result.spokenRequestText != null && !value.result.spokenRequestText.isEmpty()) {
-				info("Assistant - Question text: ${value.result.spokenRequestText}");
+				trace("Assistant - Question text: ${value.result.spokenRequestText}");
 				speechToTextResult = value.result.spokenRequestText
 				if (stopOnRequestText) finished.countDown();
 				else callback.questionComplete(speechToTextResult);
 			}
 
 			if (value.result.spokenResponseText != null && !value.result.spokenResponseText.isEmpty()) {
-				info("Assistant - Answer text: ${value.result.spokenResponseText}");
+				trace("Assistant - Answer text: ${value.result.spokenResponseText}");
 			}
 
 			if (value.result.microphoneMode == ConverseResult.MicrophoneMode.DIALOG_FOLLOW_ON) {

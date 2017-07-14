@@ -61,12 +61,14 @@ class GwenEngine {
 								for ((name, _, type, detector) in models) {
 									if (detector.detect(audioRecorder.getShortData())) {
 										pubSubServer?.hotwordDetected(name, type);
+										info("Hotword detected: $name ($type)");
 										when (type) {
 											GwenModelType.Question -> {
-												info("QA hotword detected, starting assistant conversation: " + name);
+												debug("Starting assistant conversation");
 												// FIXME should we continue conversation?
 												assistant.converse(oauth, audioRecorder, audioPlayer, object : GoogleAssistant.GoogleAssistantCallback {
 													override fun questionComplete(question: String) {
+														info("Question: $question");
 														pubSubServer?.question(name, question);
 													}
 
@@ -77,16 +79,15 @@ class GwenEngine {
 												});
 												info("Conversation ended");
 												pubSubServer?.questionEnd(name);
-												info("Waiting for hotword");
 											}
 											GwenModelType.Command -> {
-												info("Command hotword detected, starting speech-to-text: " + name);
+												debug("Starting speech-to-text");
 												val command = assistant.speechToText(oauth, audioRecorder, audioPlayer);
-												info("Speech-to-text result: $command");
-												info("Waiting for hotword");
+												info("Command: $command");
 												if (!command.isEmpty()) pubSubServer?.command(name, command);
 											}
 										}
+										debug("Waiting for hotword");
 										break;
 									}
 								}
