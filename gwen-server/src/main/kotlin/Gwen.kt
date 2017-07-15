@@ -112,7 +112,7 @@ class GwenEngine {
 				running = true;
 				thread.start();
 			} catch (t: Throwable) {
-				error("Error reloading Gwen", t);
+				error("Error starting Gwen", t);
 			}
 		}
 	}
