@@ -51,8 +51,7 @@ Gwen requires a microphone as well as a set of speakers. For Linux/Raspberry PI,
 is setup correctly. Gwen will use the default microsphone and audio output.
 
 With the pre-requisits installed, you can [download the latest build](http://libgdx.badlogicgames.com/gwen/), then in the directory you 
- downloaded the `.jar` file to, execute `java -jar gwen-1.0.jar`. Note that there is a separate build for
- Raspbian! As a rule of thumb, always start Gwen from the same directory as the `.jar` file.
+ downloaded the `.jar` file to, execute `java -jar gwen-serverjar`. As a rule of thumb, always start Gwen from the same directory as the `.jar` file.
  
  You can stop Gwen at any time via `CTRL+c` on the command line.
 
