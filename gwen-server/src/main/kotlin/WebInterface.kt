@@ -110,7 +110,7 @@ class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenE
 		try {
 			respond(request, extractFromClasspath(file), type);
 		} catch (ex: Exception) {
-			error("Error serving web interface file: " + file, ex);
+			trace("Error serving web interface file: " + file, ex);
 		}
 	}
 
