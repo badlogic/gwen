@@ -197,6 +197,51 @@ If you don't want to use Kotlin (or anyother JVM language) or JavaScript (or a c
 easily implement the simple TCP protocol for the pub/sub server. Following the [`GwenClient` implementation](https://github.com/badlogic/gwen/blob/master/gwen-client/src/main/kotlin/GwenClient.kt#L33)
 is the best protocol documentation at the moment, as the protocol might slightly change in upcoming releases.
 
+## Building
+Gwen uses [Gradle](https://gradle.org/) as its build system. 
+
+### Building stand-alone JARs
+To build both the Gwen server and client, execute the following command in a terminal in the Gwen project's root directory:
+
+```
+./gradlew dist
+```
+
+The resulting `.jar` files can be found in:
+
+```
+gwen-server/build/libs/gwen-server-<version>.jar
+gwen-client/build/libs/gwen-client-<version>.jar
+```
+
+The `.jar` files are uber-jars and can simply be dropped into your project. If you do not want to create uber-jars, use:
+
+```
+./gradlew build
+```
+
+### Building Maven artifacts
+To build artifacts and deploy them to your local `~/.m2` repository, execute:
+
+```
+./gradlew uploadArchives
+```
+
+To deploy a SNAPSHOT build to SonaType, use:
+
+```
+./gradlew -Psnapshot -PsonatypeUsername=<username> -PsonatypePassword=<password> uploadArchives
+```
+
+To deploy a release build to SonaType, use:
+
+```
+./gradlew -Prelease -PsonatypeUsername=<username> -PsonatypePassword=<password> uploadArchives
+```
+
+You'll have to manually close the staging repository in the SonaType web interface.
+
+
 ## Security
 Gwen takes a few short cuts that may result in security concerns if not handled properly.
 
