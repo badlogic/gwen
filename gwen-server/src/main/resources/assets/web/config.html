@@ -39,6 +39,9 @@
 			<td colspan="2"><button type="button" id="configSave">Save</button></td>
 		</tr>
 	</table>
+
+	<div id="clients">
+	</div>
 </form>
 
 </body>
@@ -47,6 +50,7 @@
 <script type="text/javascript" >
 
 refreshConfig();
+refreshClientConfigs();
 
 $("#configSave").click(function() {
 	$.ajax({
@@ -85,6 +89,22 @@ function applyConfig(config) {
 	$("#sendLocalAudioInput").prop("checked", config.sendLocalAudioInput);
 	$("#pubSubPort").val(config.pubSubPort);
 	$("#websocketPubSubPort").val(config.websocketPubSubPort);
+}
+
+function refreshClientConfigs() {
+	$.ajax({
+		url: "clientConfigs",
+		success: function(data) {
+			applyClientConfigs(data);
+		},
+		error: function(data) {
+			alert("Couldn't get client configurations.");
+		}
+	});
+}
+
+function applyClientConfigs(configs) {
+	console.log(configs);
 }
 
 </script>

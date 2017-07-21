@@ -70,6 +70,8 @@ class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenE
 			"/restart" -> handleRestart();
 			"/config" -> handleGetConfig(request);
 			"/configSave" -> handleSetConfig(request);
+			"/clientConfigs" -> handleGetClientConfigs(request);
+			"/clientConigsSave" -> handleSetClientConfig(request);
 			else -> handleFile(request);
 		}
 	}
@@ -276,5 +278,12 @@ class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenE
 			gwen.start(gwenConfig, oauth, gwen.pubSubServer);
 			handleGetConfig(request);
 		}
+	}
+
+	private fun  handleSetClientConfig(request: HttpExchange) {
+	}
+
+	private fun  handleGetClientConfigs(request: HttpExchange) {
+		respond(request, Gson().toJson(gwen.pubSubServer?.getClientConfigs()).toByteArray(), MIMETYPE_JSON);
 	}
 }

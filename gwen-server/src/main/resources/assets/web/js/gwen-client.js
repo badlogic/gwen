@@ -10,6 +10,8 @@ GwenClient.QUESTION = 2;
 GwenClient.QUESTION_ANSWER_AUDIO = 3;
 GwenClient.QUESTION_END = 4;
 GwenClient.AUDIO_INPUT = 5;
+GwenClient.GET_CONFIG = 6;
+GwenClient.SET_CONFIG = 7;
 
 GwenClient.prototype.connect = function (host, port, config) {
 	this.port = port;
@@ -70,6 +72,12 @@ GwenClient.prototype.connect = function (host, port, config) {
 				var audio = data.slice(5, 5 + audioSize + 1);
 				config.onAudioInput(name, audio);
 			}
+		}
+		if (messageType == GwenClient.GET_CONFIG) {
+
+		}
+		if (messageType == GwenClient.SET_CONFIG) {
+		
 		}
 	}
 };
