@@ -104,7 +104,13 @@ function refreshClientConfigs() {
 }
 
 function applyClientConfigs(configs) {
-	console.log(configs);
+	$("#clients").empty();
+	for (var i = 0; i < configs.length; i++) {
+		var config = configs[i];
+		var header = $("<h2>" + config.name + "</h2>");
+		var description = $("<div>" + config.description + "</div>");
+
+	}
 }
 
 </script>

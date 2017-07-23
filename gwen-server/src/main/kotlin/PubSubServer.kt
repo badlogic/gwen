@@ -163,32 +163,36 @@ abstract class GwenNetworkedPubSubServer<T> : GwenPubSubServer {
 		val out = DataOutputStream(bytes);
 		out.writeByte(GwenPubSubMessageType.GET_CONFIG.id);
 		out.flush();
-		broadcast(bytes.toByteArray());
-		val configs = mutableListOf<GwenPubSubClientConfigWithId>();
+		val clientsCopy = mutableListOf<Client<T>>();
 		synchronized(clients) {
-			val removed = mutableListOf<Client<T>>();
-			for (client in clients) {
-				try {
-					val input = getClientInput(client);
-					val name = input.readString();
-					val description = input.readString();
-					val numOptions = input.readInt();
-					val options = mutableListOf<GwenPubSubClientConfigOption>();
-					for (i in 0 until numOptions) {
-						val optionName = input.readString();
-						val optionType = input.readInt();
-						when (optionType) {
-							GwenPubSubClientConfigOptionType.BOOLEAN.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.BOOLEAN, input.readInt() != 0));
-							GwenPubSubClientConfigOptionType.NUMBER.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.NUMBER, input.readFloat()));
-							GwenPubSubClientConfigOptionType.STRING.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.STRING, input.readString()));
-						}
+		broadcast(bytes.toByteArray());
+			clientsCopy.addAll(clients);
+		}
+		val configs = mutableListOf<GwenPubSubClientConfigWithId>();
+		val removed = mutableListOf<Client<T>>();
+		for (client in clientsCopy) {
+			try {
+				val input = getClientInput(client);
+				val name = input.readString();
+				val description = input.readString();
+				val numOptions = input.readInt();
+				val options = mutableListOf<GwenPubSubClientConfigOption>();
+				for (i in 0 until numOptions) {
+					val optionName = input.readString();
+					val optionType = input.readInt();
+					when (optionType) {
+						GwenPubSubClientConfigOptionType.BOOLEAN.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.BOOLEAN, input.readInt() != 0));
+						GwenPubSubClientConfigOptionType.NUMBER.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.NUMBER, input.readFloat()));
+						GwenPubSubClientConfigOptionType.STRING.id -> options.add(GwenPubSubClientConfigOption(optionName, GwenPubSubClientConfigOptionType.STRING, input.readString()));
 					}
-					configs.add(GwenPubSubClientConfigWithId(GwenPubSubClientConfig(name, description, options), client.id));
-				} catch (t: Throwable) {
-					info("Removed pub/sub client while reading config: ${client.socket}");
-					removed.add(client);
 				}
+				configs.add(GwenPubSubClientConfigWithId(GwenPubSubClientConfig(name, description, options), client.id));
+			} catch (t: Throwable) {
+				error("Removed pub/sub client while reading config: ${client.socket}", t);
+				removed.add(client);
 			}
+		}
+		synchronized(clients) {
 			clients.removeAll(removed);
 		}
 		return configs;
@@ -331,10 +335,13 @@ class GwenWebSocketPubSubServer : GwenNetworkedPubSubServer<WebSocket> {
 			return object: InputStream() {
 				override fun read(): Int {
 					// Welp...
-					val start = System.nanoTime();
+					var start = System.nanoTime();
 					while(System.nanoTime() - start < 2000000000L) {
 						synchronized(bytes) {
-							if(bytes.size > 0) return bytes.removeAt(0).toInt();
+							if(bytes.size > 0) {
+								start = System.nanoTime();
+								return bytes.removeAt(0).toInt()
+							};
 						}
 					}
 					throw TimeoutException("Socket timed out");
@@ -347,7 +354,7 @@ class GwenWebSocketPubSubServer : GwenNetworkedPubSubServer<WebSocket> {
 		serverSocket = object : WebSocketServer(InetSocketAddress(port)) {
 			override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
 				synchronized(clients) {
-					clients.add(Client<WebSocket>(conn));
+					clients.add(WebsocketClient(conn));
 					info("Websocket pub/sub client connected: ${conn.remoteSocketAddress.address.hostAddress}");
 				}
 			}
@@ -367,6 +374,7 @@ class GwenWebSocketPubSubServer : GwenNetworkedPubSubServer<WebSocket> {
 			}
 
 			override fun onMessage(conn: WebSocket, message: String) {
+				trace("Received string message from websocket client, not allowed");
 			}
 
 			override fun onMessage(conn: WebSocket, message: ByteBuffer) {

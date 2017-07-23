@@ -2,6 +2,7 @@ package com.badlogicgames.gwen;
 
 import com.esotericsoftware.minlog.Log.*
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpHandler
 import com.sun.net.httpserver.HttpServer
@@ -9,6 +10,9 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.Inet4Address
+import java.util.ArrayList
+
+
 
 fun startWebInterface(gwenConfig: GwenConfig, oauth: OAuth, gwen: GwenEngine, port: Int = 8777) {
 	val server = HttpServer.create(InetSocketAddress(port), 0);
@@ -280,7 +284,22 @@ class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenE
 		}
 	}
 
+	data class Options(val id: Int, val options: List<GwenPubSubClientConfigOption>);
+
 	private fun  handleSetClientConfig(request: HttpExchange) {
+		val params = parseParams(request);
+		val options = params["options"]?.toString();
+
+		if (options == null) {
+			error(request, 400, "Invalid options");
+		} else {
+			try {
+				val result = Gson().fromJson(options, Options::class.java);
+				gwen.pubSubServer?.setClientConfigOptions(result.id, result.options);
+			} catch(t: Throwable) {
+				error(request, 400, "Invalid options");
+			}
+		}
 	}
 
 	private fun  handleGetClientConfigs(request: HttpExchange) {
