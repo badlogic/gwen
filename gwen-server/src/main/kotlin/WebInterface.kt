@@ -105,6 +105,7 @@ class WebInterface(val gwenConfig: GwenConfig, val oauth: OAuth, val gwen: GwenE
 			"html" -> type = MIMETYPE_HTML
 			"css" -> type = MIMETYPE_CSS
 			"js" -> type = MIMETYPE_JS
+			"ico" -> return
 			else -> type = MIMETYPE_BINARY
 		}
 		try {
