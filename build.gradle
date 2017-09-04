@@ -1,7 +1,11 @@
 buildscript {
     repositories {
-    mavenCentral()
-  }
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.1.3-2"
+    }
 }
 
 allprojects() {
@@ -10,5 +14,40 @@ allprojects() {
         mavenLocal()
     }
 
-    version = "1.0"
+    apply plugin: "kotlin"
+    apply plugin: "java"
+    apply plugin: "eclipse"
+
+    eclipse.project {
+        natures 'org.jetbrains.kotlin.core.kotlinNature'
+    }
+}
+
+/** Maven **/
+/** needed to disable Java 8 doclint which throws errors **/
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+allprojects() {
+	project.ext.pomGroup = "com.badlogicgames.gwen";
+	project.ext.pomVersion = "1.0"
+}
+
+project(":gwen-client") {
+	project.ext.pomName = "gwen-client"
+	project.ext.pomDescription = "Gwen client"
+
+	apply from : '../publish.gradle'
+}
+
+project(":gwen-server") {
+	project.ext.pomName = "gwen-server"
+	project.ext.pomDescription = "Gwen server"
+
+    apply from : '../publish.gradle'
 }

@@ -51,8 +51,7 @@ Gwen requires a microphone as well as a set of speakers. For Linux/Raspberry PI,
 is setup correctly. Gwen will use the default microsphone and audio output.
 
 With the pre-requisits installed, you can [download the latest build](http://libgdx.badlogicgames.com/gwen/), then in the directory you 
- downloaded the `.jar` file to, execute `java -jar gwen-1.0.jar`. Note that there is a separate build for
- Raspbian! As a rule of thumb, always start Gwen from the same directory as the `.jar` file.
+ downloaded the `.jar` file to, execute `java -jar gwen-serverjar`. As a rule of thumb, always start Gwen from the same directory as the `.jar` file.
  
  You can stop Gwen at any time via `CTRL+c` on the command line.
 
@@ -196,6 +195,51 @@ client.connect("localhost", 8779, {
 If you don't want to use Kotlin (or anyother JVM language) or JavaScript (or a compile to JavaScript language), you can 
 easily implement the simple TCP protocol for the pub/sub server. Following the [`GwenClient` implementation](https://github.com/badlogic/gwen/blob/master/gwen-client/src/main/kotlin/GwenClient.kt#L33)
 is the best protocol documentation at the moment, as the protocol might slightly change in upcoming releases.
+
+## Building
+Gwen uses [Gradle](https://gradle.org/) as its build system. 
+
+### Building stand-alone JARs
+To build both the Gwen server and client, execute the following command in a terminal in the Gwen project's root directory:
+
+```
+./gradlew dist
+```
+
+The resulting `.jar` files can be found in:
+
+```
+gwen-server/build/libs/gwen-server-<version>.jar
+gwen-client/build/libs/gwen-client-<version>.jar
+```
+
+The `.jar` files are uber-jars and can simply be dropped into your project. If you do not want to create uber-jars, use:
+
+```
+./gradlew build
+```
+
+### Building Maven artifacts
+To build artifacts and deploy them to your local `~/.m2` repository, execute:
+
+```
+./gradlew uploadArchives
+```
+
+To deploy a SNAPSHOT build to SonaType, use:
+
+```
+./gradlew -Psnapshot -PsonatypeUsername=<username> -PsonatypePassword=<password> uploadArchives
+```
+
+To deploy a release build to SonaType, use:
+
+```
+./gradlew -Prelease -PsonatypeUsername=<username> -PsonatypePassword=<password> uploadArchives
+```
+
+You'll have to manually close the staging repository in the SonaType web interface.
+
 
 ## Security
 Gwen takes a few short cuts that may result in security concerns if not handled properly.

@@ -70,6 +70,23 @@ $.ajax({ url: "config", success: function(data) {
 			console.log("Question end, " + modelName);
 		},
 		onAudioInput: function(audio) {
+		},
+		onGetConfig: function() {
+			return {
+				name: "Websocket example client",
+				description: "A simple client that does nothing!",
+				options: [
+					{ name: "Option #1", value: true },
+					{ name: "Option #2", value: 1234.4 },
+					{ name: "Option #3", value: "this is a test" }
+				]
+			};
+		},
+		onSetConfig: function(config) {
+			for (var i = 0; i < config.length; i++) {
+				var option = config[i];
+				console.log(option.name + " (" + option.type + "): " + option.value);
+			}
 		}
 	});
 	// window.addEventListener('unload', pubSubClient.close);
